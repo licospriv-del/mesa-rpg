@@ -7,7 +7,7 @@
   <style>
     body { background:#111; color:#fff; font-family:Arial; padding:20px }
     button { padding:6px 12px; margin:4px }
-    input { padding:6px }
+    input, select { padding:6px; margin:4px }
     .box { border:1px solid #444; padding:10px; margin-top:10px }
   </style>
 </head>
@@ -51,6 +51,7 @@
 
   <!-- JOGADOR -->
   <div id="areaJogador" class="box" style="display:none">
+    <p id="infoJogador"></p>
     <button onclick="rolarDado()">Rolar dado</button>
   </div>
 
@@ -60,8 +61,9 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-import { getDatabase, ref, set, onValue, push } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
+import { getDatabase, ref, set, onValue, push, update } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
+/* 🔴 TROQUE APENAS A API KEY */
 const firebaseConfig = {
   apiKey: "SUA_API_KEY_AQUI",
   authDomain: "mesa-rpg-9f195.firebaseapp.com",
@@ -71,6 +73,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+
+let DT = 0;
 
 // ===== LOGIN =====
 window.mostrarJogador = () => {
@@ -91,7 +95,8 @@ window.entrarJogador = () => {
   localStorage.setItem("nick", nick);
 
   set(ref(db, "jogadores/" + nick), {
-    rolls: 0
+    rolls: 0,
+    dado: 0
   });
 
   iniciar();
@@ -112,34 +117,33 @@ window.entrarMestre = () => {
 function iniciar() {
   telaLogin.style.display = "none";
   painel.style.display = "block";
+
   bemVindo.innerText =
     localStorage.getItem("nick") +
     " (" +
     localStorage.getItem("tipo") +
     ")";
 
+  ouvirDT();
+  ouvirHistorico();
+
   if (localStorage.getItem("tipo") === "mestre") {
     controleMestre.style.display = "block";
-    ouvirJogadores(); // 👈 AGORA SÓ O MESTRE ESCUTA
+    ouvirJogadores();
   } else {
     areaJogador.style.display = "block";
+    ouvirStatusJogador();
   }
-
-  ouvirHistorico();
 }
 
 // ===== FIREBASE =====
 function ouvirJogadores() {
   onValue(ref(db, "jogadores"), snap => {
     listaJogadores.innerHTML = "";
-
-    snap.forEach(jogador => {
-      const nick = jogador.key;
+    snap.forEach(j => {
       const btn = document.createElement("button");
-
-      btn.innerText = nick;
-      btn.onclick = () => darPermissao(nick);
-
+      btn.innerText = j.key;
+      btn.onclick = () => configurarJogador(j.key);
       listaJogadores.appendChild(btn);
     });
   });
@@ -148,7 +152,6 @@ function ouvirJogadores() {
 function ouvirHistorico() {
   onValue(ref(db, "historico"), snap => {
     historico.innerHTML = "";
-
     snap.forEach(s => {
       const li = document.createElement("li");
       li.innerText = s.val();
@@ -157,12 +160,34 @@ function ouvirHistorico() {
   });
 }
 
-// ===== MESTRE =====
-window.darPermissao = nick => {
-  const rolls = Number(prompt("Quantas rolagens?"));
-  if (isNaN(rolls)) return;
+function ouvirDT() {
+  onValue(ref(db, "DT"), snap => {
+    DT = snap.val() ?? 0;
+  });
+}
 
-  set(ref(db, "jogadores/" + nick + "/rolls"), rolls);
+function ouvirStatusJogador() {
+  const nick = localStorage.getItem("nick");
+  onValue(ref(db, "jogadores/" + nick), snap => {
+    const j = snap.val();
+    if (!j) return;
+
+    infoJogador.innerText =
+      `🎲 D${j.dado || "-"} | Rolagens: ${j.rolls} | DT: ${DT}`;
+  });
+}
+
+// ===== MESTRE =====
+window.configurarJogador = nick => {
+  const dado = Number(prompt("Tipo de dado (4,6,8,10,12,20):"));
+  const rolls = Number(prompt("Quantidade de rolagens:"));
+
+  if (!dado || !rolls) return alert("Valores inválidos");
+
+  update(ref(db, "jogadores/" + nick), {
+    dado: dado,
+    rolls: rolls
+  });
 };
 
 window.definirDT = () => {
@@ -175,13 +200,18 @@ window.rolarDado = () => {
 
   onValue(ref(db, "jogadores/" + nick), snap => {
     const j = snap.val();
-    if (!j || j.rolls <= 0) {
+    if (!j || j.rolls <= 0 || !j.dado) {
       alert("Sem permissão");
       return;
     }
 
-    const valor = Math.floor(Math.random() * 20) + 1;
-    push(ref(db, "historico"), `${nick} rolou ${valor}`);
+    const valor = Math.floor(Math.random() * j.dado) + 1;
+    const resultado = valor >= DT ? "SUCESSO" : "FALHA";
+
+    push(
+      ref(db, "historico"),
+      `${nick} rolou D${j.dado}: ${valor} | DT ${DT} → ${resultado}`
+    );
 
     set(ref(db, "jogadores/" + nick + "/rolls"), j.rolls - 1);
   }, { onlyOnce: true });
