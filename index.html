@@ -2,46 +2,12 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <title>Mesa de RPG 🎲</title>
-
+  <title>Mesa de RPG</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #111;
-      color: #eee;
-      padding: 20px;
-    }
-
-    button {
-      margin: 5px;
-      padding: 8px 12px;
-      cursor: pointer;
-    }
-
-    input, select {
-      margin: 5px 0;
-      padding: 6px;
-    }
-
-    #barraJogadores button {
-      background: #333;
-      color: white;
-      border: 1px solid #555;
-    }
-
-    #controleJogador, #controleDT {
-      border: 1px solid #555;
-      padding: 10px;
-      margin-top: 10px;
-    }
-
-    #historicoDados {
-      margin-top: 15px;
-      max-height: 250px;
-      overflow-y: auto;
-      border: 1px solid #555;
-      padding: 10px;
-    }
+    body { background:#111; color:#fff; font-family:Arial; padding:20px }
+    button { padding:6px 12px; margin:4px }
+    input, select { padding:6px }
+    .box { border:1px solid #444; padding:10px; margin-top:10px }
   </style>
 </head>
 
@@ -49,271 +15,141 @@
 
 <h1>Mesa de RPG 🎲</h1>
 
-<!-- ================= LOGIN ================= -->
-
+<!-- TELA LOGIN -->
 <div id="telaLogin">
-  <button onclick="mostrarLoginJogador()">Jogador</button>
-  <button onclick="mostrarLoginMestre()">Mestre</button>
+  <button onclick="mostrarJogador()">Jogador</button>
+  <button onclick="mostrarMestre()">Mestre</button>
+
+  <div id="loginJogador" style="display:none">
+    <input id="nickJogador" placeholder="Nickname">
+    <button onclick="entrarJogador()">Entrar</button>
+  </div>
+
+  <div id="loginMestre" style="display:none">
+    <input id="nickMestre" placeholder="Nick do Mestre">
+    <input id="senhaMestre" placeholder="Senha">
+    <button onclick="entrarMestre()">Entrar</button>
+  </div>
 </div>
 
-<div id="loginJogador" style="display:none;">
-  <h3>Login de Jogador</h3>
-  <input id="nickJogador" placeholder="Seu nickname">
-  <br>
-  <button onclick="entrarJogador()">Entrar</button>
-</div>
-
-<div id="loginMestre" style="display:none;">
-  <h3>Login de Mestre</h3>
-  <input id="nickMestre" placeholder="Nickname do mestre">
-  <br>
-  <input id="senhaMestre" type="password" placeholder="Senha">
-  <br>
-  <button onclick="entrarMestre()">Entrar</button>
-</div>
-
-<hr>
-
-<!-- ================= PAINEL ================= -->
-
-<div id="painel" style="display:none;">
-
+<!-- PAINEL -->
+<div id="painel" style="display:none">
   <h2 id="bemVindo"></h2>
 
-  <!-- BARRA DE JOGADORES -->
-  <div id="barraJogadores"></div>
-
-  <!-- CONTROLE DO MESTRE -->
-  <div id="controleDT" style="display:none;">
+  <div id="controleMestre" class="box" style="display:none">
     <h3>Controle do Mestre</h3>
-    <label>DT:</label>
-    <input type="number" id="dtAtual">
+    DT: <input id="dtAtual" type="number">
     <button onclick="definirDT()">Definir</button>
+
+    <h4>Jogadores</h4>
+    <div id="listaJogadores"></div>
   </div>
 
-  <div id="controleJogador" style="display:none;">
-    <h3 id="tituloControle"></h3>
-
-    <label>Dado:</label>
-    <select id="tipoDado">
-      <option value="4">d4</option>
-      <option value="6">d6</option>
-      <option value="8">d8</option>
-      <option value="10">d10</option>
-      <option value="12">d12</option>
-      <option value="20">d20</option>
-    </select>
-
-    <br>
-
-    <label>Rolagens:</label>
-    <input type="number" id="qtdRolls">
-
-    <br>
-
-    <button onclick="salvarPermissao()">Salvar</button>
-  </div>
-
-  <!-- ÁREA DO JOGADOR -->
-  <div id="areaJogador" style="display:none;">
-    <p id="dtVisivel"></p>
+  <div id="areaJogador" class="box" style="display:none">
     <p id="infoJogador"></p>
-    <button id="btnRolar" onclick="rolarDado()">Rolar dado</button>
-    <p id="statusJogador"></p>
+    <button onclick="rolarDado()">Rolar dado</button>
   </div>
 
-  <!-- HISTÓRICO -->
-  <ul id="historicoDados"></ul>
-
+  <h3>Histórico</h3>
+  <ul id="historico"></ul>
 </div>
 
-<!-- ================= FIREBASE ================= -->
+<!-- 🔥 JAVASCRIPT -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-  import {
-    getDatabase,
-    ref,
-    set,
-    update,
-    onValue,
-    push
-  } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, push } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyCzAXZ0RWY-RtgKVDUeqrnmImaN9hAxMmI",
-    authDomain: "mesa-rpg-9f195.firebaseapp.com",
-    databaseURL: "https://mesa-rpg-9f195-default-rtdb.firebaseio.com",
-    projectId: "mesa-rpg-9f195",
-    storageBucket: "mesa-rpg-9f195.firebasestorage.app",
-    messagingSenderId: "413626106286",
-    appId: "1:413626106286:web:10d5b7dd73c8d083c4883f"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyCzAXZ0RWY-RtgKVDUeqrnmImaN9hAxMmI",
+  authDomain: "mesa-rpg-9f195.firebaseapp.com",
+  databaseURL: "https://mesa-rpg-9f195-default-rtdb.firebaseio.com",
+  projectId: "mesa-rpg-9f195",
+};
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-  // 🔹 Deixe db global
-  window.db = db;
-  window.ref = ref;
-  window.set = set;
-  window.update = update;
-  window.onValue = onValue;
-  window.push = push;
-</script>
+// ===== LOGIN =====
+window.mostrarJogador = () => {
+  loginJogador.style.display = "block";
+  loginMestre.style.display = "none";
+};
 
+window.mostrarMestre = () => {
+  loginMestre.style.display = "block";
+  loginJogador.style.display = "none";
+};
 
-  // ================= VARIÁVEIS =================
-  let jogadores = {};
-  let DT = 0;
-  let jogadorSelecionado = null;
+window.entrarJogador = () => {
+  const nick = nickJogador.value.trim();
+  if (!nick) return alert("Nick vazio");
+  localStorage.setItem("tipo","jogador");
+  localStorage.setItem("nick",nick);
+  set(ref(db,"jogadores/"+nick),{ dado:20, rolls:0 });
+  iniciar();
+};
 
-  // ================= LOGIN =================
-  window.mostrarLoginJogador = () => {
-    esconder();
-    loginJogador.style.display = "block";
-  };
+window.entrarMestre = () => {
+  if (senhaMestre.value !== "souomestredosmagos") return alert("Senha errada");
+  localStorage.setItem("tipo","mestre");
+  localStorage.setItem("nick",nickMestre.value);
+  iniciar();
+};
 
-  window.mostrarLoginMestre = () => {
-    esconder();
-    loginMestre.style.display = "block";
-  };
+function iniciar(){
+  telaLogin.style.display="none";
+  painel.style.display="block";
+  bemVindo.innerText = localStorage.getItem("nick")+" ("+localStorage.getItem("tipo")+")";
 
-  function esconder() {
-    loginJogador.style.display = "none";
-    loginMestre.style.display = "none";
+  if(localStorage.getItem("tipo")==="mestre"){
+    controleMestre.style.display="block";
+  } else {
+    areaJogador.style.display="block";
   }
+}
 
-  window.entrarJogador = () => {
-    const nick = nickJogador.value.trim();
-    if (!nick) return alert("Digite um nick");
-
-    localStorage.setItem("tipo", "jogador");
-    localStorage.setItem("nick", nick);
-
-    set(ref(db, "jogadores/" + nick), {
-      dado: null,
-      rolls: 0
-    });
-
-    iniciar();
-  };
-
-  window.entrarMestre = () => {
-    if (senhaMestre.value !== "souomestredosmagos")
-      return alert("Senha errada");
-
-    localStorage.setItem("tipo", "mestre");
-    localStorage.setItem("nick", nickMestre.value);
-
-    iniciar();
-  };
-
-  // ================= INICIAR =================
-  function iniciar() {
-    telaLogin.style.display = "none";
-    loginJogador.style.display = "none";
-    loginMestre.style.display = "none";
-    painel.style.display = "block";
-
-    bemVindo.innerText =
-      localStorage.getItem("nick") +
-      " (" +
-      localStorage.getItem("tipo") +
-      ")";
-
-    if (localStorage.getItem("tipo") === "mestre") {
-      controleDT.style.display = "block";
-    } else {
-      areaJogador.style.display = "block";
-    }
-  }
-
-  // ================= SINCRONIZAÇÕES =================
-  onValue(ref(db, "jogadores"), snap => {
-    jogadores = snap.val() || {};
-    renderizarJogadores();
-    atualizarStatusJogador();
+// ===== FIREBASE =====
+onValue(ref(db,"jogadores"), snap=>{
+  listaJogadores.innerHTML="";
+  snap.forEach(s=>{
+    const btn=document.createElement("button");
+    btn.innerText=s.key;
+    btn.onclick=()=>darPermissao(s.key);
+    listaJogadores.appendChild(btn);
   });
+});
 
-  onValue(ref(db, "DT"), snap => {
-    DT = snap.val() || 0;
-    dtVisivel.innerText = "DT atual: " + DT;
+onValue(ref(db,"historico"), snap=>{
+  historico.innerHTML="";
+  snap.forEach(s=>{
+    const li=document.createElement("li");
+    li.innerText=s.val();
+    historico.prepend(li);
   });
+});
 
-  onValue(ref(db, "historico"), snap => {
-    historicoDados.innerHTML = "";
-    snap.forEach(c => {
-      const li = document.createElement("li");
-      li.innerText = c.val();
-      historicoDados.prepend(li);
-    });
-  });
+// ===== MESTRE =====
+window.darPermissao = nick =>{
+  const rolls = prompt("Quantas rolagens?");
+  set(ref(db,"jogadores/"+nick+"/rolls"), Number(rolls));
+};
 
-  // ================= MESTRE =================
-  window.abrirControleJogador = nick => {
-    if (localStorage.getItem("tipo") !== "mestre") return;
+window.definirDT = ()=>{
+  set(ref(db,"DT"), Number(dtAtual.value));
+};
 
-    jogadorSelecionado = nick;
-    tituloControle.innerText = "Permissões: " + nick;
-    controleJogador.style.display = "block";
-  };
-
-  window.salvarPermissao = () => {
-    set(ref(db, "jogadores/" + jogadorSelecionado), {
-      dado: Number(tipoDado.value),
-      rolls: Number(qtdRolls.value)
-    });
-  };
-
-  window.definirDT = () => {
-    set(ref(db, "DT"), Number(dtAtual.value));
-  };
-
-  // ================= JOGADOR =================
-  window.rolarDado = () => {
-    const nick = localStorage.getItem("nick");
-    const j = jogadores[nick];
-    if (!j || j.rolls <= 0) return;
-
-    const valor = Math.floor(Math.random() * (j.dado + 1));
-    const res = valor > DT ? "SUCESSO" : "FALHA";
-
-    push(ref(db, "historico"),
-      `${nick} rolou d${j.dado} → ${valor} | DT ${DT} → ${res}`
-    );
-
-    set(ref(db, "jogadores/" + nick + "/rolls"), j.rolls - 1);
-  };
-
-  function atualizarStatusJogador() {
-    if (localStorage.getItem("tipo") !== "jogador") return;
-
-    const nick = localStorage.getItem("nick");
-    const j = jogadores[nick];
-
-    if (!j || j.rolls <= 0) {
-      btnRolar.style.display = "none";
-      statusJogador.innerText = "Aguardando mestre...";
-      return;
-    }
-
-    btnRolar.style.display = "block";
-    infoJogador.innerText = "Dado: d" + j.dado;
-    statusJogador.innerText = "Rolagens restantes: " + j.rolls;
-  }
-
-  function renderizarJogadores() {
-    barraJogadores.innerHTML = "";
-    Object.keys(jogadores).forEach(nick => {
-      const b = document.createElement("button");
-      b.innerText = nick;
-      b.onclick = () => abrirControleJogador(nick);
-      barraJogadores.appendChild(b);
-    });
-  }
-
+// ===== JOGADOR =====
+window.rolarDado = ()=>{
+  const nick=localStorage.getItem("nick");
+  onValue(ref(db,"jogadores/"+nick), snap=>{
+    const j=snap.val();
+    if(!j || j.rolls<=0) return alert("Sem permissão");
+    const v=Math.floor(Math.random()*21);
+    push(ref(db,"historico"), `${nick} rolou ${v}`);
+    set(ref(db,"jogadores/"+nick+"/rolls"), j.rolls-1);
+  },{onlyOnce:true});
+};
 </script>
 
 </body>
 </html>
-
