@@ -61,8 +61,11 @@ input, select { padding:6px }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-import { getDatabase, ref, set, onValue, push, remove } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
+import { 
+  getDatabase, ref, set, onValue, push, remove, onDisconnect, get 
+} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
+/* 🔴 SUA CONFIG */
 const firebaseConfig = {
   apiKey: "SUA_API_KEY_AQUI",
   authDomain: "mesa-rpg-9f195.firebaseapp.com",
@@ -93,15 +96,15 @@ window.entrarJogador = () => {
   localStorage.setItem("tipo", "jogador");
   localStorage.setItem("nick", nick);
 
-  set(ref(db, "jogadores/" + nick), {
+  const jogadorRef = ref(db, "jogadores/" + nick);
+
+  set(jogadorRef, {
     rolls: 0,
-    dado: 20
+    dado: 20,
+    online: true
   });
 
-  // REMOVE jogador ao fechar aba
-  window.addEventListener("beforeunload", () => {
-    remove(ref(db, "jogadores/" + nick));
-  });
+  onDisconnect(jogadorRef).remove(); // 🔥 REMOVE AO SAIR
 
   iniciar();
 };
@@ -140,34 +143,21 @@ function iniciar() {
   }
 }
 
-// ===== FIREBASE =====
+// ===== OUVINTES =====
 function ouvirJogadores() {
   onValue(ref(db, "jogadores"), snap => {
     listaJogadores.innerHTML = "";
     snap.forEach(j => {
+      const dados = j.val();
+      if (!dados?.online) return;
+
       const div = document.createElement("div");
 
-      const nome = document.createElement("b");
-      nome.innerText = j.key + " ";
-
-      const dado = document.createElement("select");
-      [4,6,8,10,12,20].forEach(d => {
-        const op = document.createElement("option");
-        op.value = d;
-        op.innerText = "d" + d;
-        dado.appendChild(op);
-      });
-
-      dado.value = j.val().dado || 20;
-      dado.onchange = () => {
-        set(ref(db, "jogadores/" + j.key + "/dado"), Number(dado.value));
-      };
-
       const btn = document.createElement("button");
-      btn.innerText = "Permitir";
+      btn.innerText = j.key;
       btn.onclick = () => darPermissao(j.key);
 
-      div.append(nome, dado, btn);
+      div.appendChild(btn);
       listaJogadores.appendChild(div);
     });
   });
@@ -187,7 +177,6 @@ function ouvirHistorico() {
 function ouvirDT() {
   onValue(ref(db, "DT"), snap => {
     DT = snap.val() ?? 0;
-    dtAtual.value = DT;
   });
 }
 
@@ -205,7 +194,15 @@ function ouvirStatusJogador() {
 window.darPermissao = nick => {
   const rolls = Number(prompt("Quantas rolagens?"));
   if (isNaN(rolls)) return;
-  set(ref(db, "jogadores/" + nick + "/rolls"), rolls);
+
+  const dado = Number(prompt("Qual dado? (4,6,8,10,12,20)"));
+  if (![4,6,8,10,12,20].includes(dado)) return alert("Dado inválido");
+
+  set(ref(db, "jogadores/" + nick), {
+    rolls,
+    dado,
+    online: true
+  });
 };
 
 window.definirDT = () => {
@@ -213,27 +210,28 @@ window.definirDT = () => {
 };
 
 // ===== JOGADOR =====
-window.rolarDado = () => {
+window.rolarDado = async () => {
   const nick = localStorage.getItem("nick");
+  const snap = await get(ref(db, "jogadores/" + nick));
+  const j = snap.val();
 
-  onValue(ref(db, "jogadores/" + nick), snap => {
-    const j = snap.val();
-    if (!j || j.rolls <= 0) {
-      alert("Sem permissão");
-      return;
-    }
+  if (!j || j.rolls <= 0) {
+    alert("Sem permissão");
+    return;
+  }
 
-    const valor = Math.floor(Math.random() * j.dado) + 1;
-    const resultado = valor >= DT ? "SUCESSO" : "FALHA";
+  const valor = Math.floor(Math.random() * j.dado) + 1;
+  const resultado = valor >= DT ? "SUCESSO" : "FALHA";
 
-    push(ref(db, "historico"),
-      `${nick} rolou d${j.dado}: ${valor} | DT ${DT} → ${resultado}`
-    );
+  push(
+    ref(db, "historico"),
+    `${nick} rolou d${j.dado}: ${valor} | DT ${DT} → ${resultado}`
+  );
 
-    set(ref(db, "jogadores/" + nick + "/rolls"), j.rolls - 1);
-  }, { onlyOnce:true });
+  set(ref(db, "jogadores/" + nick + "/rolls"), j.rolls - 1);
 };
 </script>
 
 </body>
 </html>
+
