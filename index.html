@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <title>Mesa de RPG</title>
+<meta charset="UTF-8">
+<title>Mesa de RPG</title>
 
-  <style>
-    body { background:#111; color:#fff; font-family:Arial; padding:20px }
-    button { padding:6px 12px; margin:4px }
-    input, select { padding:6px; margin:4px }
-    .box { border:1px solid #444; padding:10px; margin-top:10px }
-  </style>
+<style>
+body { background:#111; color:#fff; font-family:Arial; padding:20px }
+button { padding:6px 12px; margin:4px }
+input, select { padding:6px }
+.box { border:1px solid #444; padding:10px; margin-top:10px }
+</style>
 </head>
 
 <body>
@@ -61,9 +61,8 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-import { getDatabase, ref, set, onValue, push, update } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
+import { getDatabase, ref, set, onValue, push, remove } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
-/* 🔴 TROQUE APENAS A API KEY */
 const firebaseConfig = {
   apiKey: "SUA_API_KEY_AQUI",
   authDomain: "mesa-rpg-9f195.firebaseapp.com",
@@ -96,7 +95,12 @@ window.entrarJogador = () => {
 
   set(ref(db, "jogadores/" + nick), {
     rolls: 0,
-    dado: 0
+    dado: 20
+  });
+
+  // REMOVE jogador ao fechar aba
+  window.addEventListener("beforeunload", () => {
+    remove(ref(db, "jogadores/" + nick));
   });
 
   iniciar();
@@ -141,10 +145,30 @@ function ouvirJogadores() {
   onValue(ref(db, "jogadores"), snap => {
     listaJogadores.innerHTML = "";
     snap.forEach(j => {
+      const div = document.createElement("div");
+
+      const nome = document.createElement("b");
+      nome.innerText = j.key + " ";
+
+      const dado = document.createElement("select");
+      [4,6,8,10,12,20].forEach(d => {
+        const op = document.createElement("option");
+        op.value = d;
+        op.innerText = "d" + d;
+        dado.appendChild(op);
+      });
+
+      dado.value = j.val().dado || 20;
+      dado.onchange = () => {
+        set(ref(db, "jogadores/" + j.key + "/dado"), Number(dado.value));
+      };
+
       const btn = document.createElement("button");
-      btn.innerText = j.key;
-      btn.onclick = () => configurarJogador(j.key);
-      listaJogadores.appendChild(btn);
+      btn.innerText = "Permitir";
+      btn.onclick = () => darPermissao(j.key);
+
+      div.append(nome, dado, btn);
+      listaJogadores.appendChild(div);
     });
   });
 }
@@ -163,6 +187,7 @@ function ouvirHistorico() {
 function ouvirDT() {
   onValue(ref(db, "DT"), snap => {
     DT = snap.val() ?? 0;
+    dtAtual.value = DT;
   });
 }
 
@@ -171,23 +196,16 @@ function ouvirStatusJogador() {
   onValue(ref(db, "jogadores/" + nick), snap => {
     const j = snap.val();
     if (!j) return;
-
     infoJogador.innerText =
-      `🎲 D${j.dado || "-"} | Rolagens: ${j.rolls} | DT: ${DT}`;
+      `Rolagens: ${j.rolls} | Dado: d${j.dado} | DT: ${DT}`;
   });
 }
 
 // ===== MESTRE =====
-window.configurarJogador = nick => {
-  const dado = Number(prompt("Tipo de dado (4,6,8,10,12,20):"));
-  const rolls = Number(prompt("Quantidade de rolagens:"));
-
-  if (!dado || !rolls) return alert("Valores inválidos");
-
-  update(ref(db, "jogadores/" + nick), {
-    dado: dado,
-    rolls: rolls
-  });
+window.darPermissao = nick => {
+  const rolls = Number(prompt("Quantas rolagens?"));
+  if (isNaN(rolls)) return;
+  set(ref(db, "jogadores/" + nick + "/rolls"), rolls);
 };
 
 window.definirDT = () => {
@@ -200,7 +218,7 @@ window.rolarDado = () => {
 
   onValue(ref(db, "jogadores/" + nick), snap => {
     const j = snap.val();
-    if (!j || j.rolls <= 0 || !j.dado) {
+    if (!j || j.rolls <= 0) {
       alert("Sem permissão");
       return;
     }
@@ -208,13 +226,12 @@ window.rolarDado = () => {
     const valor = Math.floor(Math.random() * j.dado) + 1;
     const resultado = valor >= DT ? "SUCESSO" : "FALHA";
 
-    push(
-      ref(db, "historico"),
-      `${nick} rolou D${j.dado}: ${valor} | DT ${DT} → ${resultado}`
+    push(ref(db, "historico"),
+      `${nick} rolou d${j.dado}: ${valor} | DT ${DT} → ${resultado}`
     );
 
     set(ref(db, "jogadores/" + nick + "/rolls"), j.rolls - 1);
-  }, { onlyOnce: true });
+  }, { onlyOnce:true });
 };
 </script>
 
