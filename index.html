@@ -189,7 +189,8 @@ function ouvirHistorico() {
 
 function ouvirDT() {
   onValue(ref(db, "DT"), snap => {
-    if (snap.exists()) DT = snap.val();
+    DT = Number(snap.val());
+    if (siNaN(DT)) DT = 0;
   });
 }
 
@@ -248,3 +249,4 @@ window.rolarDado = () => {
 
 </body>
 </html>
+
