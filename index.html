@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <title>Mesa de RPG</title>
+
   <style>
     body { background:#111; color:#fff; font-family:Arial; padding:20px }
     button { padding:6px 12px; margin:4px }
-    input, select { padding:6px }
+    input { padding:6px }
     .box { border:1px solid #444; padding:10px; margin-top:10px }
   </style>
 </head>
@@ -15,7 +16,7 @@
 
 <h1>Mesa de RPG 🎲</h1>
 
-<!-- TELA LOGIN -->
+<!-- LOGIN -->
 <div id="telaLogin">
   <button onclick="mostrarJogador()">Jogador</button>
   <button onclick="mostrarMestre()">Mestre</button>
@@ -36,17 +37,20 @@
 <div id="painel" style="display:none">
   <h2 id="bemVindo"></h2>
 
+  <!-- MESTRE -->
   <div id="controleMestre" class="box" style="display:none">
     <h3>Controle do Mestre</h3>
-    DT: <input id="dtAtual" type="number">
+
+    DT:
+    <input id="dtAtual" type="number">
     <button onclick="definirDT()">Definir</button>
 
     <h4>Jogadores</h4>
     <div id="listaJogadores"></div>
   </div>
 
+  <!-- JOGADOR -->
   <div id="areaJogador" class="box" style="display:none">
-    <p id="infoJogador"></p>
     <button onclick="rolarDado()">Rolar dado</button>
   </div>
 
@@ -54,13 +58,12 @@
   <ul id="historico"></ul>
 </div>
 
-<!-- 🔥 JAVASCRIPT -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
 import { getDatabase, ref, set, onValue, push } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCzAXZ0RWY-RtgKVDUeqrnmImaN9hAxMmI",
+  apiKey: "SUA_API_KEY_AQUI",
   authDomain: "mesa-rpg-9f195.firebaseapp.com",
   databaseURL: "https://mesa-rpg-9f195-default-rtdb.firebaseio.com",
   projectId: "mesa-rpg-9f195",
@@ -83,71 +86,105 @@ window.mostrarMestre = () => {
 window.entrarJogador = () => {
   const nick = nickJogador.value.trim();
   if (!nick) return alert("Nick vazio");
-  localStorage.setItem("tipo","jogador");
-  localStorage.setItem("nick",nick);
-  set(ref(db,"jogadores/"+nick),{ dado:20, rolls:0 });
+
+  localStorage.setItem("tipo", "jogador");
+  localStorage.setItem("nick", nick);
+
+  set(ref(db, "jogadores/" + nick), {
+    rolls: 0
+  });
+
   iniciar();
 };
 
 window.entrarMestre = () => {
-  if (senhaMestre.value !== "souomestredosmagos") return alert("Senha errada");
-  localStorage.setItem("tipo","mestre");
-  localStorage.setItem("nick",nickMestre.value);
+  if (senhaMestre.value !== "souomestredosmagos") {
+    return alert("Senha errada");
+  }
+
+  localStorage.setItem("tipo", "mestre");
+  localStorage.setItem("nick", nickMestre.value || "Mestre");
+
   iniciar();
 };
 
-function iniciar(){
-  telaLogin.style.display="none";
-  painel.style.display="block";
-  bemVindo.innerText = localStorage.getItem("nick")+" ("+localStorage.getItem("tipo")+")";
+// ===== INICIAR =====
+function iniciar() {
+  telaLogin.style.display = "none";
+  painel.style.display = "block";
+  bemVindo.innerText =
+    localStorage.getItem("nick") +
+    " (" +
+    localStorage.getItem("tipo") +
+    ")";
 
-  if(localStorage.getItem("tipo")==="mestre"){
-    controleMestre.style.display="block";
+  if (localStorage.getItem("tipo") === "mestre") {
+    controleMestre.style.display = "block";
+    ouvirJogadores(); // 👈 AGORA SÓ O MESTRE ESCUTA
   } else {
-    areaJogador.style.display="block";
+    areaJogador.style.display = "block";
   }
+
+  ouvirHistorico();
 }
 
 // ===== FIREBASE =====
-onValue(ref(db,"jogadores"), snap=>{
-  listaJogadores.innerHTML="";
-  snap.forEach(s=>{
-    const btn=document.createElement("button");
-    btn.innerText=s.key;
-    btn.onclick=()=>darPermissao(s.key);
-    listaJogadores.appendChild(btn);
-  });
-});
+function ouvirJogadores() {
+  onValue(ref(db, "jogadores"), snap => {
+    listaJogadores.innerHTML = "";
 
-onValue(ref(db,"historico"), snap=>{
-  historico.innerHTML="";
-  snap.forEach(s=>{
-    const li=document.createElement("li");
-    li.innerText=s.val();
-    historico.prepend(li);
+    snap.forEach(jogador => {
+      const nick = jogador.key;
+      const btn = document.createElement("button");
+
+      btn.innerText = nick;
+      btn.onclick = () => darPermissao(nick);
+
+      listaJogadores.appendChild(btn);
+    });
   });
-});
+}
+
+function ouvirHistorico() {
+  onValue(ref(db, "historico"), snap => {
+    historico.innerHTML = "";
+
+    snap.forEach(s => {
+      const li = document.createElement("li");
+      li.innerText = s.val();
+      historico.prepend(li);
+    });
+  });
+}
 
 // ===== MESTRE =====
-window.darPermissao = nick =>{
-  const rolls = prompt("Quantas rolagens?");
-  set(ref(db,"jogadores/"+nick+"/rolls"), Number(rolls));
+window.darPermissao = nick => {
+  const rolls = Number(prompt("Quantas rolagens?"));
+  if (isNaN(rolls)) return;
+
+  set(ref(db, "jogadores/" + nick + "/rolls"), rolls);
 };
 
-window.definirDT = ()=>{
-  set(ref(db,"DT"), Number(dtAtual.value));
+window.definirDT = () => {
+  set(ref(db, "DT"), Number(dtAtual.value));
 };
 
 // ===== JOGADOR =====
-window.rolarDado = ()=>{
-  const nick=localStorage.getItem("nick");
-  onValue(ref(db,"jogadores/"+nick), snap=>{
-    const j=snap.val();
-    if(!j || j.rolls<=0) return alert("Sem permissão");
-    const v=Math.floor(Math.random()*21);
-    push(ref(db,"historico"), `${nick} rolou ${v}`);
-    set(ref(db,"jogadores/"+nick+"/rolls"), j.rolls-1);
-  },{onlyOnce:true});
+window.rolarDado = () => {
+  const nick = localStorage.getItem("nick");
+
+  onValue(ref(db, "jogadores/" + nick), snap => {
+    const j = snap.val();
+    if (!j || j.rolls <= 0) {
+      alert("Sem permissão");
+      return;
+    }
+
+    const valor = Math.floor(Math.random() * 20) + 1;
+    push(ref(db, "historico"), `${nick} rolou ${valor}`);
+
+    set(ref(db, "jogadores/" + nick + "/rolls"), j.rolls - 1);
+  }, { onlyOnce: true });
 };
 </script>
 
