@@ -7,7 +7,7 @@
 <style>
 body { background:#111; color:#fff; font-family:Arial; padding:20px }
 button { padding:6px 12px; margin:4px }
-input, select { padding:6px }
+input, select { padding:6px; margin:4px }
 .box { border:1px solid #444; padding:10px; margin-top:10px }
 </style>
 </head>
@@ -43,7 +43,9 @@ input, select { padding:6px }
 
     DT:
     <input id="dtAtual" type="number">
-    <button onclick="definirDT()">Definir</button>
+    <button onclick="definirDT()">Definir DT</button>
+
+    <button onclick="limparHistorico()">🗑 Limpar Histórico</button>
 
     <h4>Jogadores</h4>
     <div id="listaJogadores"></div>
@@ -61,16 +63,15 @@ input, select { padding:6px }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-import { 
-  getDatabase, ref, set, onValue, push, remove, onDisconnect, get 
+import {
+  getDatabase, ref, set, onValue, push, onDisconnect, remove
 } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
-/* 🔴 SUA CONFIG */
 const firebaseConfig = {
   apiKey: "SUA_API_KEY_AQUI",
   authDomain: "mesa-rpg-9f195.firebaseapp.com",
   databaseURL: "https://mesa-rpg-9f195-default-rtdb.firebaseio.com",
-  projectId: "mesa-rpg-9f195",
+  projectId: "mesa-rpg-9f195"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -104,8 +105,7 @@ window.entrarJogador = () => {
     online: true
   });
 
-  onDisconnect(jogadorRef).remove(); // 🔥 REMOVE AO SAIR
-
+  onDisconnect(jogadorRef).remove();
   iniciar();
 };
 
@@ -116,7 +116,6 @@ window.entrarMestre = () => {
 
   localStorage.setItem("tipo", "mestre");
   localStorage.setItem("nick", nickMestre.value || "Mestre");
-
   iniciar();
 };
 
@@ -155,7 +154,7 @@ function ouvirJogadores() {
 
       const btn = document.createElement("button");
       btn.innerText = j.key;
-      btn.onclick = () => darPermissao(j.key);
+      btn.onclick = () => configurarJogador(j.key);
 
       div.appendChild(btn);
       listaJogadores.appendChild(div);
@@ -191,12 +190,12 @@ function ouvirStatusJogador() {
 }
 
 // ===== MESTRE =====
-window.darPermissao = nick => {
+window.configurarJogador = nick => {
+  const dado = Number(prompt("Tipo de dado (4 a 20):"));
+  if (![4,6,8,10,12,20].includes(dado)) return alert("Dado inválido");
+
   const rolls = Number(prompt("Quantas rolagens?"));
   if (isNaN(rolls)) return;
-
-  const dado = Number(prompt("Qual dado? (4,6,8,10,12,20)"));
-  if (![4,6,8,10,12,20].includes(dado)) return alert("Dado inválido");
 
   set(ref(db, "jogadores/" + nick), {
     rolls,
@@ -209,29 +208,33 @@ window.definirDT = () => {
   set(ref(db, "DT"), Number(dtAtual.value));
 };
 
+window.limparHistorico = () => {
+  remove(ref(db, "historico"));
+};
+
 // ===== JOGADOR =====
-window.rolarDado = async () => {
+window.rolarDado = () => {
   const nick = localStorage.getItem("nick");
-  const snap = await get(ref(db, "jogadores/" + nick));
-  const j = snap.val();
+  const jogadorRef = ref(db, "jogadores/" + nick);
 
-  if (!j || j.rolls <= 0) {
-    alert("Sem permissão");
-    return;
-  }
+  onValue(jogadorRef, snap => {
+    const j = snap.val();
+    if (!j || j.rolls <= 0) return alert("Sem permissão");
 
-  const valor = Math.floor(Math.random() * j.dado) + 1;
-  const resultado = valor >= DT ? "SUCESSO" : "FALHA";
+    const valor = Math.floor(Math.random() * j.dado) + 1;
+    const resultado = valor >= DT ? "SUCESSO" : "FALHA";
 
-  push(
-    ref(db, "historico"),
-    `${nick} rolou d${j.dado}: ${valor} | DT ${DT} → ${resultado}`
-  );
+    push(ref(db, "historico"),
+      `${nick} rolou d${j.dado}: ${valor} | DT ${DT} → ${resultado}`
+    );
 
-  set(ref(db, "jogadores/" + nick + "/rolls"), j.rolls - 1);
+    set(jogadorRef, {
+      ...j,
+      rolls: j.rolls - 1
+    });
+  }, { onlyOnce: true });
 };
 </script>
 
 </body>
 </html>
-
