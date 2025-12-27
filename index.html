@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8">
-<title>Mesa de RPG</title>
+  <meta charset="UTF-8">
+  <title>Mesa de RPG</title>
 
-<style>
-body { background:#111; color:#fff; font-family:Arial; padding:20px }
-button { padding:6px 12px; margin:4px }
-input, select { padding:6px; margin:4px }
-.box { border:1px solid #444; padding:10px; margin-top:10px }
-</style>
+  <style>
+    body { background:#111; color:#fff; font-family:Arial; padding:20px }
+    button { padding:6px 12px; margin:4px }
+    input, select { padding:6px; margin:4px }
+    .box { border:1px solid #444; padding:10px; margin-top:10px }
+  </style>
 </head>
 
 <body>
@@ -43,11 +43,11 @@ input, select { padding:6px; margin:4px }
 
     DT:
     <input id="dtAtual" type="number">
-    <button onclick="definirDT()">Definir DT</button>
+    <button onclick="definirDT()">Definir</button>
 
-    <button onclick="limparHistorico()">🗑 Limpar Histórico</button>
+    <button onclick="limparHistorico()">🧹 Limpar histórico</button>
 
-    <h4>Jogadores</h4>
+    <h4>Jogadores ativos</h4>
     <div id="listaJogadores"></div>
   </div>
 
@@ -63,15 +63,13 @@ input, select { padding:6px; margin:4px }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-import {
-  getDatabase, ref, set, onValue, push, onDisconnect, remove
-} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
+import { getDatabase, ref, set, onValue, push, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "SUA_API_KEY_AQUI",
   authDomain: "mesa-rpg-9f195.firebaseapp.com",
   databaseURL: "https://mesa-rpg-9f195-default-rtdb.firebaseio.com",
-  projectId: "mesa-rpg-9f195"
+  projectId: "mesa-rpg-9f195",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -97,15 +95,16 @@ window.entrarJogador = () => {
   localStorage.setItem("tipo", "jogador");
   localStorage.setItem("nick", nick);
 
-  const jogadorRef = ref(db, "jogadores/" + nick);
+  const refJogador = ref(db, "jogadores/" + nick);
 
-  set(jogadorRef, {
+  set(refJogador, {
     rolls: 0,
     dado: 20,
     online: true
   });
 
-  onDisconnect(jogadorRef).remove();
+  onDisconnect(refJogador).remove();
+
   iniciar();
 };
 
@@ -116,6 +115,7 @@ window.entrarMestre = () => {
 
   localStorage.setItem("tipo", "mestre");
   localStorage.setItem("nick", nickMestre.value || "Mestre");
+
   iniciar();
 };
 
@@ -142,7 +142,7 @@ function iniciar() {
   }
 }
 
-// ===== OUVINTES =====
+// ===== FIREBASE =====
 function ouvirJogadores() {
   onValue(ref(db, "jogadores"), snap => {
     listaJogadores.innerHTML = "";
@@ -154,9 +154,23 @@ function ouvirJogadores() {
 
       const btn = document.createElement("button");
       btn.innerText = j.key;
-      btn.onclick = () => configurarJogador(j.key);
+      btn.onclick = () => darPermissao(j.key);
+
+      const select = document.createElement("select");
+      [4,6,8,10,12,20].forEach(d => {
+        const o = document.createElement("option");
+        o.value = d;
+        o.innerText = "d" + d;
+        select.appendChild(o);
+      });
+
+      select.value = dados.dado || 20;
+      select.onchange = () => {
+        set(ref(db, "jogadores/" + j.key + "/dado"), Number(select.value));
+      };
 
       div.appendChild(btn);
+      div.appendChild(select);
       listaJogadores.appendChild(div);
     });
   });
@@ -175,7 +189,7 @@ function ouvirHistorico() {
 
 function ouvirDT() {
   onValue(ref(db, "DT"), snap => {
-    DT = snap.val() ?? 0;
+    if (snap.exists()) DT = snap.val();
   });
 }
 
@@ -185,53 +199,49 @@ function ouvirStatusJogador() {
     const j = snap.val();
     if (!j) return;
     infoJogador.innerText =
-      `Rolagens: ${j.rolls} | Dado: d${j.dado} | DT: ${DT}`;
+      `Rolagens restantes: ${j.rolls} | Dado: d${j.dado} | DT atual: ${DT}`;
   });
 }
 
 // ===== MESTRE =====
-window.configurarJogador = nick => {
-  const dado = Number(prompt("Tipo de dado (4 a 20):"));
-  if (![4,6,8,10,12,20].includes(dado)) return alert("Dado inválido");
-
+window.darPermissao = nick => {
   const rolls = Number(prompt("Quantas rolagens?"));
   if (isNaN(rolls)) return;
 
-  set(ref(db, "jogadores/" + nick), {
-    rolls,
-    dado,
-    online: true
-  });
+  set(ref(db, "jogadores/" + nick + "/rolls"), rolls);
 };
 
 window.definirDT = () => {
-  set(ref(db, "DT"), Number(dtAtual.value));
+  const v = Number(dtAtual.value);
+  if (isNaN(v)) return alert("DT inválida");
+  set(ref(db, "DT"), v);
 };
 
 window.limparHistorico = () => {
+  if (!confirm("Limpar histórico para todos?")) return;
   remove(ref(db, "historico"));
 };
 
 // ===== JOGADOR =====
 window.rolarDado = () => {
   const nick = localStorage.getItem("nick");
-  const jogadorRef = ref(db, "jogadores/" + nick);
 
-  onValue(jogadorRef, snap => {
+  onValue(ref(db, "jogadores/" + nick), snap => {
     const j = snap.val();
-    if (!j || j.rolls <= 0) return alert("Sem permissão");
+    if (!j || j.rolls <= 0) {
+      alert("Sem permissão");
+      return;
+    }
 
     const valor = Math.floor(Math.random() * j.dado) + 1;
     const resultado = valor >= DT ? "SUCESSO" : "FALHA";
 
-    push(ref(db, "historico"),
-      `${nick} rolou d${j.dado}: ${valor} | DT ${DT} → ${resultado}`
+    push(
+      ref(db, "historico"),
+      `${nick} rolou d${j.dado} → ${valor} | DT ${DT} → ${resultado}`
     );
 
-    set(jogadorRef, {
-      ...j,
-      rolls: j.rolls - 1
-    });
+    set(ref(db, "jogadores/" + nick + "/rolls"), j.rolls - 1);
   }, { onlyOnce: true });
 };
 </script>
