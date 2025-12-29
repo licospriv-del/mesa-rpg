@@ -14,7 +14,7 @@ body {
   margin:0;
 }
 h1,h2,h3,h4{margin:8px 0}
-button,input,select{
+button,input{
   padding:12px;
   margin:6px 0;
   width:100%;
@@ -28,7 +28,6 @@ button,input,select{
 }
 @media (min-width:768px){
   body{max-width:700px;margin:auto}
-  button,input,select{width:auto}
 }
 </style>
 </head>
@@ -37,92 +36,41 @@ button,input,select{
 
 <h1>Mesa de RPG 🎲</h1>
 
-<!-- 🔐 SENHA GLOBAL -->
 <div id="telaSenha">
   <input id="senhaGlobal" type="password" placeholder="Senha da mesa">
   <button id="btnSenha">Entrar</button>
 </div>
 
-<!-- 🔑 LOGIN UID -->
 <div id="telaAuth" style="display:none">
   <input id="email" type="email" placeholder="Email">
   <input id="senha" type="password" placeholder="Senha">
- <button id="btnLogin">Entrar / Cadastrar</button>
+  <button id="btnLogin">Entrar / Cadastrar</button>
 </div>
 
-<!-- ESCOLHA -->
 <div id="telaLogin" style="display:none">
-  <button onclick="mostrarJogador()">Jogador</button>
-  <button onclick="mostrarMestre()">Mestre</button>
+  <button id="btnJogador">Jogador</button>
+  <button id="btnMestre">Mestre</button>
 </div>
 
-<!-- JOGADOR -->
-<div id="loginJogador" class="box" style="display:none">
-  <h3>Personagens</h3>
-  <div id="listaPersonagens"></div>
-
-  <input id="novoNick" placeholder="Novo personagem">
-  <button onclick="criarPersonagem()">Criar personagem</button>
-</div>
-
-<!-- MESTRE -->
-<div id="loginMestre" class="box" style="display:none">
-  <input id="nickMestre" placeholder="Nick do Mestre">
-  <input id="senhaMestre" type="password" placeholder="Senha do Mestre">
-  <button onclick="entrarMestre()">Entrar</button>
-</div>
-
-<!-- PAINEL -->
 <div id="painel" style="display:none">
   <h2 id="bemVindo"></h2>
 
   <div id="controleMestre" class="box" style="display:none">
     <input id="dtAtual" type="number" placeholder="DT">
-    <button onclick="definirDT()">Definir DT</button>
-    <button onclick="limparHistorico()">🧹 Limpar histórico</button>
+    <button id="btnDT">Definir DT</button>
+    <button id="btnLimpar">🧹 Limpar histórico</button>
     <div id="listaJogadores"></div>
   </div>
 
   <div id="areaJogador" class="box" style="display:none">
     <p id="infoJogador"></p>
-    <button onclick="rolarDado()">🎲 Rolar dado</button>
+    <button id="btnRolar">🎲 Rolar dado</button>
   </div>
 
   <ul id="historico"></ul>
 </div>
 
 <script type="module">
-
-  // ===== BIND DE BOTÕES (IMPORTANTE PARA MODULE) =====
-document.getElementById("btnSenha").addEventListener("click", () => {
-  const senha = senhaGlobal.value.trim();
-
-  if (senha !== "somosumbra") {
-    alert("Senha incorreta");
-    return;
-  }
-
-  telaSenha.style.display = "none";
-  telaAuth.style.display = "block";
-});
-
-document.getElementById("btnLogin").addEventListener("click", async () => {
-  const email = document.getElementById("email").value.trim();
-  const senha = document.getElementById("senha").value.trim();
-
-  if (!email || !senha) {
-    alert("Preencha email e senha");
-    return;
-  }
-
-  try {
-    await signInWithEmailAndPassword(auth, email, senha);
-  } catch {
-    await createUserWithEmailAndPassword(auth, email, senha);
-  }
-});
-
-  
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
 import {
   getAuth,
@@ -130,7 +78,6 @@ import {
   signInWithEmailAndPassword,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
-
 import {
   getDatabase,
   ref,
@@ -145,7 +92,7 @@ const firebaseConfig = {
   apiKey: "SUA_API_KEY",
   authDomain: "mesa-rpg-9f195.firebaseapp.com",
   databaseURL: "https://mesa-rpg-9f195-default-rtdb.firebaseio.com",
-  projectId: "mesa-rpg-9f195",
+  projectId: "mesa-rpg-9f195"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -156,161 +103,145 @@ let UID = null;
 let nickAtual = null;
 let DT = 0;
 
-/* =========================
-   LOGIN INICIAL (SOMOSUMBRA)
-========================= */
-
-
-
-/* =========================
-   AUTH EMAIL/SENHA
-========================= */
-
-
-/* =========================
-   ESCOLHA JOGADOR / MESTRE
-========================= */
-function escolherModo() {
-  telaLogin.innerHTML = `
-    <button onclick="modoJogador()">Jogador</button>
-    <button onclick="modoMestre()">Mestre</button>
-  `;
-}
-
-window.modoJogador = () => {
-  const base = ref(db, `usuarios/${UID}/personagens`);
-  onValue(base, snap => {
-    let html = "<h3>Escolha um personagem</h3>";
-    snap.forEach(p => {
-      html += `<button onclick="entrarPersonagem('${p.key}')">${p.key}</button>`;
-    });
-    html += `<button onclick="novoPersonagem()">➕ Novo personagem</button>`;
-    telaLogin.innerHTML = html;
-  }, { onlyOnce:true });
-};
-
-window.novoPersonagem = () => {
-  const nick = prompt("Nome do personagem");
-  if (!nick) return;
-  entrarPersonagem(nick, true);
-};
-
-window.entrarPersonagem = (nick, novo=false) => {
-  nickAtual = nick;
-
-  const refJogador = ref(db, `jogadores/${UID}_${nick}`);
-  set(refJogador, {
-    uid: UID,
-    nick,
-    rolls: 0,
-    dado: 20,
-    online: true
-  });
-
-  if (novo) {
-    set(ref(db, `usuarios/${UID}/personagens/${nick}`), {
-      criado: Date.now()
-    });
-  }
-
-  onDisconnect(refJogador).remove();
-  iniciar("jogador");
-};
-
-window.modoMestre = () => {
-  const senha = prompt("Senha do mestre");
-  if (senha !== "souomestredosmagos") {
-    alert("Senha errada");
+/* ===== SENHA GLOBAL ===== */
+btnSenha.addEventListener("click", () => {
+  if (senhaGlobal.value !== "somosumbra") {
+    alert("Senha incorreta");
     return;
   }
-  iniciar("mestre");
-};
+  telaSenha.style.display = "none";
+  telaAuth.style.display = "block";
+});
 
-/* =========================
-   INICIAR SISTEMA
-========================= */
-function iniciar(tipo) {
-  telaLogin.style.display = "none";
-  painel.style.display = "block";
-  bemVindo.innerText = `${nickAtual || "Mestre"} (${tipo})`;
+/* ===== AUTH ===== */
+btnLogin.addEventListener("click", async () => {
+  try {
+    await signInWithEmailAndPassword(auth, email.value, senha.value);
+  } catch {
+    await createUserWithEmailAndPassword(auth, email.value, senha.value);
+  }
+});
+
+onAuthStateChanged(auth, user => {
+  if (!user) return;
+  UID = user.uid;
+  telaAuth.style.display = "none";
+  telaLogin.style.display = "block";
+});
+
+/* ===== ESCOLHA ===== */
+btnJogador.addEventListener("click", () => {
+  const base = ref(db, `usuarios/${UID}/personagens`);
+  onValue(base, snap => {
+    telaLogin.innerHTML = "<h3>Escolha personagem</h3>";
+    snap.forEach(p => {
+      const b = document.createElement("button");
+      b.textContent = p.key;
+      b.onclick = () => entrarPersonagem(p.key);
+      telaLogin.appendChild(b);
+    });
+    const novo = document.createElement("button");
+    novo.textContent = "➕ Novo personagem";
+    novo.onclick = novoPersonagem;
+    telaLogin.appendChild(novo);
+  }, { onlyOnce:true });
+});
+
+btnMestre.addEventListener("click", () => {
+  const s = prompt("Senha do mestre");
+  if (s !== "souomestredosmagos") return alert("Senha errada");
+  iniciar("mestre");
+});
+
+/* ===== JOGADOR ===== */
+function novoPersonagem(){
+  const n = prompt("Nome do personagem");
+  if (!n) return;
+  entrarPersonagem(n,true);
+}
+
+function entrarPersonagem(nick, novo=false){
+  nickAtual = nick;
+  const r = ref(db, `jogadores/${UID}_${nick}`);
+  set(r,{uid:UID,nick,rolls:1,dado:20,online:true});
+  if(novo) set(ref(db,`usuarios/${UID}/personagens/${nick}`),{criado:Date.now()});
+  onDisconnect(r).remove();
+  iniciar("jogador");
+}
+
+/* ===== INICIAR ===== */
+function iniciar(tipo){
+  telaLogin.style.display="none";
+  painel.style.display="block";
+  bemVindo.innerText = nickAtual || "Mestre";
 
   ouvirDT();
   ouvirHistorico();
 
-  if (tipo === "mestre") {
-    controleMestre.style.display = "block";
+  if(tipo==="mestre"){
+    controleMestre.style.display="block";
     ouvirJogadores();
-  } else {
-    areaJogador.style.display = "block";
+  }else{
+    areaJogador.style.display="block";
     ouvirStatusJogador();
   }
 }
 
-/* =========================
-   FIREBASE
-========================= */
-function ouvirJogadores() {
-  onValue(ref(db, "jogadores"), snap => {
-    listaJogadores.innerHTML = "";
-    snap.forEach(j => {
-      const d = j.val();
-      if (!d?.online) return;
-
-      const div = document.createElement("div");
-      div.innerText = d.nick;
-      listaJogadores.appendChild(div);
+/* ===== FIREBASE ===== */
+function ouvirJogadores(){
+  onValue(ref(db,"jogadores"), snap=>{
+    listaJogadores.innerHTML="";
+    snap.forEach(j=>{
+      if(j.val().online){
+        const d=document.createElement("div");
+        d.textContent=j.val().nick;
+        listaJogadores.appendChild(d);
+      }
     });
   });
 }
 
-function ouvirHistorico() {
-  onValue(ref(db, "historico"), snap => {
-    historico.innerHTML = "";
-    snap.forEach(s => {
-      const li = document.createElement("li");
-      li.innerText = s.val();
+function ouvirHistorico(){
+  onValue(ref(db,"historico"), snap=>{
+    historico.innerHTML="";
+    snap.forEach(s=>{
+      const li=document.createElement("li");
+      li.textContent=s.val();
       historico.prepend(li);
     });
   });
 }
 
-function ouvirDT() {
-  onValue(ref(db, "DT"), snap => DT = Number(snap.val()) || 0);
+function ouvirDT(){
+  onValue(ref(db,"DT"), s=>DT=Number(s.val())||0);
 }
 
-function ouvirStatusJogador() {
-  onValue(ref(db, `jogadores/${UID}_${nickAtual}`), snap => {
-    const j = snap.val();
-    if (!j) return;
-    infoJogador.innerText =
-      `Rolagens: ${j.rolls} | Dado: d${j.dado} | DT: ${DT}`;
+function ouvirStatusJogador(){
+  onValue(ref(db,`jogadores/${UID}_${nickAtual}`), s=>{
+    if(!s.val()) return;
+    infoJogador.innerText=`DT ${DT}`;
   });
 }
 
-/* =========================
-   ROLAGEM
-========================= */
-window.rolarDado = () => {
-  const refJ = ref(db, `jogadores/${UID}_${nickAtual}`);
-  onValue(refJ, snap => {
-    const j = snap.val();
-    if (!j || j.rolls <= 0) return alert("Sem permissão");
+/* ===== AÇÕES ===== */
+btnRolar.addEventListener("click", ()=>{
+  const r=ref(db,`jogadores/${UID}_${nickAtual}`);
+  onValue(r,s=>{
+    if(!s.val()||s.val().rolls<=0)return;
+    const v=Math.floor(Math.random()*20)+1;
+    push(ref(db,"historico"),`${nickAtual} rolou ${v}`);
+    set(ref(db,`${r.key}/rolls`),0);
+  },{onlyOnce:true});
+});
 
-    const v = Math.floor(Math.random() * j.dado) + 1;
-    const r = v >= DT ? "SUCESSO" : "FALHA";
+btnDT.addEventListener("click", ()=>{
+  set(ref(db,"DT"),Number(dtAtual.value));
+});
 
-    push(ref(db, "historico"),
-      `${j.nick} rolou d${j.dado} → ${v} | DT ${DT} → ${r}`
-    );
-
-    set(ref(db, `${refJ.key}/rolls`), j.rolls - 1);
-  }, { onlyOnce:true });
-};
+btnLimpar.addEventListener("click", ()=>{
+  remove(ref(db,"historico"));
+});
 </script>
 
 </body>
 </html>
-
-
-
-
