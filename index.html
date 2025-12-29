@@ -47,7 +47,7 @@ button,input,select{
 <div id="telaAuth" style="display:none">
   <input id="email" type="email" placeholder="Email">
   <input id="senha" type="password" placeholder="Senha">
-  <button onclick="login()">Entrar / Cadastrar</button>
+  <button onclick="loginEmail()">Entrar / Cadastrar</button>
 </div>
 
 <!-- ESCOLHA -->
@@ -128,14 +128,18 @@ let DT = 0;
 /* =========================
    LOGIN INICIAL (SOMOSUMBRA)
 ========================= */
-window.entrarComSenhaInicial = () => {
-  const senha = prompt("Digite a senha de acesso");
+window.verificarSenha = () => {
+  const senha = senhaGlobal.value.trim();
+
   if (senha !== "somosumbra") {
     alert("Senha incorreta");
     return;
   }
-  telaLogin.style.display = "block";
+
+  telaSenha.style.display = "none";
+  telaAuth.style.display = "block";
 };
+
 
 /* =========================
    AUTH EMAIL/SENHA
@@ -153,9 +157,13 @@ window.loginEmail = async () => {
 
 onAuthStateChanged(auth, user => {
   if (!user) return;
+
   UID = user.uid;
-  escolherModo();
+
+  telaAuth.style.display = "none";
+  telaLogin.style.display = "block";
 });
+
 
 /* =========================
    ESCOLHA JOGADOR / MESTRE
@@ -300,4 +308,5 @@ window.rolarDado = () => {
 
 </body>
 </html>
+
 
