@@ -6,44 +6,12 @@
 <title>Mesa de RPG</title>
 
 <style>
-body{
-  background:#111;
-  color:#fff;
-  font-family:Arial, sans-serif;
-  padding:16px;
-  margin:0
-}
+body{background:#111;color:#fff;font-family:Arial;padding:16px;margin:0}
 h1,h2,h3,h4{margin:8px 0}
-button,input,select{
-  width:100%;
-  padding:12px;
-  margin:6px 0;
-  font-size:16px
-}
-.box{
-  border:1px solid #444;
-  padding:12px;
-  margin-top:12px;
-  border-radius:8px
-}
-#listaJogadores>div{
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-  margin-bottom:10px;
-  border-bottom:1px solid #333;
-  padding-bottom:8px
-}
-.codigoSala{
-  background:#222;
-  padding:10px;
-  border-radius:6px;
-  font-family:monospace;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:10px
-}
+button,input,select{width:100%;padding:12px;margin:6px 0;font-size:16px}
+.box{border:1px solid #444;padding:12px;margin-top:12px;border-radius:8px}
+#listaJogadores>div{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:8px}
+.codigoSala{background:#222;padding:10px;border-radius:6px;font-family:monospace;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 @media(min-width:768px){
   body{max-width:700px;margin:auto}
   button,input,select{width:auto}
@@ -59,11 +27,15 @@ button,input,select{
 <!-- SALA -->
 <div id="telaSala">
   <button id="btnCriarSala">Criar sala</button>
-  <input id="codigoSalaInput" placeholder="Código da sala">
-  <button id="btnEntrarSala">Entrar na sala</button>
+  <button id="btnMostrarEntrar">Entrar na sala</button>
+
+  <div id="areaEntrarSala" style="display:none">
+    <input id="codigoSalaInput" placeholder="Código da sala">
+    <button id="btnEntrarSala">Confirmar entrada</button>
+  </div>
 </div>
 
-<!-- SENHA MESTRE (CRIAÇÃO) -->
+<!-- SENHA MESTRE -->
 <div id="telaSenhaMestre" style="display:none">
   <input id="senhaMestreCriacao" type="password" placeholder="Senha do mestre">
   <button id="btnConfirmarSenhaMestre">Confirmar</button>
@@ -145,20 +117,16 @@ const telas=[
 ];
 const esconderTudo=()=>telas.forEach(t=>t.style.display="none");
 
-let UID=null;
-let nickAtual=null;
-let tipoAtual=null;
-let salaAtual=null;
-let DT=0;
+let UID=null,nickAtual=null,tipoAtual=null,salaAtual=null,DT=0;
 
-/* ========= SALA ========= */
+/* ===== SALA ===== */
 
 function gerarCodigo(){
   const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*";
   return Array.from({length:8},()=>c[Math.floor(Math.random()*c.length)]).join("");
 }
 
-btnCriarSala.onclick=async()=>{
+btnCriarSala.onclick=()=>{
   esconderTudo();
   telaSenhaMestre.style.display="block";
 };
@@ -182,17 +150,22 @@ btnConfirmarSenhaMestre.onclick=async()=>{
   telaAuth.style.display="block";
 };
 
+btnMostrarEntrar.onclick=()=>{
+  areaEntrarSala.style.display=
+    areaEntrarSala.style.display==="none"?"block":"none";
+};
+
 btnEntrarSala.onclick=async()=>{
   const c=codigoSalaInput.value;
   const s=await get(ref(db,"salas/"+c));
-  if(!s.exists()){alert("Sala inexistente");return;}
+  if(!s.exists())return alert("Sala inexistente");
   salaAtual=c;
   await set(ref(db,`salas/${c}/membros`),s.val().membros+1);
   esconderTudo();
   telaAuth.style.display="block";
 };
 
-/* ========= AUTH ========= */
+/* ===== AUTH ===== */
 
 btnLogin.onclick=async()=>{
   try{
@@ -209,7 +182,7 @@ onAuthStateChanged(auth,u=>{
   telaLogin.style.display="block";
 });
 
-/* ========= ESCOLHA ========= */
+/* ===== ESCOLHA ===== */
 
 btnMestre.onclick=async()=>{
   const s=await get(ref(db,`salas/${salaAtual}/senhaMestre`));
@@ -236,7 +209,7 @@ btnJogador.onclick=()=>{
   },{onlyOnce:true});
 };
 
-/* ========= JOGO ========= */
+/* ===== JOGO ===== */
 
 function entrarPersonagem(nick,novo){
   nickAtual=nick;
@@ -268,4 +241,98 @@ function iniciar(){
   }
 }
 
-/* === resto do código de jogo (DT, rolls, histórico) permanece IGUAL === */
+/* ===== FUNÇÕES ANTIGAS (INTACTAS) ===== */
+
+function ouvirJogadores(){
+  onValue(ref(db,`salas/${salaAtual}/jogadores`),snap=>{
+    listaJogadores.innerHTML="";
+    snap.forEach(j=>{
+      const d=j.val();
+      if(!d?.online)return;
+      const div=document.createElement("div");
+      const btn=document.createElement("button");
+      btn.textContent=d.nick;
+      btn.onclick=()=>darPermissao(j.key);
+      const sel=document.createElement("select");
+      [4,6,8,10,12,20].forEach(x=>{
+        const o=document.createElement("option");
+        o.value=x;o.textContent="d"+x;
+        sel.appendChild(o);
+      });
+      sel.value=d.dado||20;
+      sel.onchange=()=>set(ref(db,`salas/${salaAtual}/jogadores/${j.key}/dado`),Number(sel.value));
+      div.append(btn,sel);
+      listaJogadores.appendChild(div);
+    });
+  });
+}
+
+function ouvirDT(){
+  onValue(ref(db,`salas/${salaAtual}/DT`),s=>DT=Number(s.val())||0);
+}
+
+function ouvirHistorico(){
+  onValue(ref(db,`salas/${salaAtual}/historico`),snap=>{
+    historico.innerHTML="";
+    snap.forEach(x=>{
+      const li=document.createElement("li");
+      li.textContent=x.val();
+      historico.prepend(li);
+    });
+  });
+}
+
+function ouvirStatusJogador(){
+  const id=`${UID}_${nickAtual}`;
+  onValue(ref(db,`salas/${salaAtual}/jogadores/${id}`),snap=>{
+    const j=snap.val();
+    if(!j)return;
+    infoJogador.textContent=`Rolagens: ${j.rolls} | Dado: d${j.dado} | DT: ${DT}`;
+  });
+}
+
+window.darPermissao=id=>{
+  const r=Number(prompt("Quantas rolagens?"));
+  if(!isNaN(r))set(ref(db,`salas/${salaAtual}/jogadores/${id}/rolls`),r);
+};
+
+window.definirDT=()=>{
+  const v=Number(dtAtual.value);
+  if(!isNaN(v))set(ref(db,`salas/${salaAtual}/DT`),v);
+};
+
+window.limparHistorico=()=>{
+  if(confirm("Limpar histórico?"))
+    remove(ref(db,`salas/${salaAtual}/historico`));
+};
+
+window.rolarDado=()=>{
+  const id=`${UID}_${nickAtual}`;
+  onValue(ref(db,`salas/${salaAtual}/jogadores/${id}`),snap=>{
+    const j=snap.val();
+    if(!j||j.rolls<=0){alert("Sem permissão");return;}
+    const v=Math.floor(Math.random()*j.dado)+1;
+    const res=v>=DT?"SUCESSO":"FALHA";
+    push(ref(db,`salas/${salaAtual}/historico`),
+      `${j.nick} rolou d${j.dado} → ${v} | DT ${DT} → ${res}`
+    );
+    set(ref(db,`salas/${salaAtual}/jogadores/${id}/rolls`),j.rolls-1);
+  },{onlyOnce:true});
+};
+
+btnSairMesa.onclick=async()=>{
+  if(nickAtual){
+    remove(ref(db,`salas/${salaAtual}/jogadores/${UID}_${nickAtual}`));
+    nickAtual=null;
+  }
+  const mRef=ref(db,`salas/${salaAtual}/membros`);
+  const s=await get(mRef);
+  if(s.val()-1<=0) remove(ref(db,`salas/${salaAtual}`));
+  else set(mRef,s.val()-1);
+  await signOut(auth);
+  location.reload();
+};
+</script>
+
+</body>
+</html>
