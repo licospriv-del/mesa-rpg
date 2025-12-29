@@ -175,16 +175,23 @@ btnEntrarSala.onclick=async()=>{
 
 /* ===== AUTH ===== */
 btnLogin.onclick = async () => {
-  try{
-    await signInWithEmailAndPassword(auth,email.value,senha.value);
-  }catch(e){
-    if(e.code === "auth/wrong-password"){
+  try {
+    // tenta login normal
+    await signInWithEmailAndPassword(auth, email.value, senha.value);
+  } catch (e) {
+    if (e.code === "auth/user-not-found") {
+      // usuário não existe → cria
+      try {
+        await createUserWithEmailAndPassword(auth, email.value, senha.value);
+      } catch (err) {
+        alert("Erro ao criar conta: " + err.message);
+      }
+    } else if (e.code === "auth/wrong-password") {
+      // usuário existe, senha errada
       alert("Senha incorreta para este email.");
-      return;
-    }
-    if(e.code === "auth/user-not-found"){
-      await createUserWithEmailAndPassword(auth,email.value,senha.value);
-    }else{
+    } else if (e.code === "auth/invalid-credential") {
+      alert("Email ou senha inválidos.");
+    } else {
       alert("Erro ao autenticar: " + e.message);
     }
   }
@@ -348,4 +355,5 @@ btnVoltar.onclick = () => {
 
 </body>
 </html>
+
 
