@@ -92,6 +92,37 @@ button,input,select{
 </div>
 
 <script type="module">
+
+  // ===== BIND DE BOTÕES (IMPORTANTE PARA MODULE) =====
+document.getElementById("btnSenha").addEventListener("click", () => {
+  const senha = senhaGlobal.value.trim();
+
+  if (senha !== "somosumbra") {
+    alert("Senha incorreta");
+    return;
+  }
+
+  telaSenha.style.display = "none";
+  telaAuth.style.display = "block";
+});
+
+document.getElementById("btnLogin").addEventListener("click", async () => {
+  const email = document.getElementById("email").value.trim();
+  const senha = document.getElementById("senha").value.trim();
+
+  if (!email || !senha) {
+    alert("Preencha email e senha");
+    return;
+  }
+
+  try {
+    await signInWithEmailAndPassword(auth, email, senha);
+  } catch {
+    await createUserWithEmailAndPassword(auth, email, senha);
+  }
+});
+
+  
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
 import {
   getAuth,
@@ -128,41 +159,12 @@ let DT = 0;
 /* =========================
    LOGIN INICIAL (SOMOSUMBRA)
 ========================= */
-window.verificarSenha = () => {
-  const senha = senhaGlobal.value.trim();
 
-  if (senha !== "somosumbra") {
-    alert("Senha incorreta");
-    return;
-  }
-
-  telaSenha.style.display = "none";
-  telaAuth.style.display = "block";
-};
 
 
 /* =========================
    AUTH EMAIL/SENHA
 ========================= */
-window.loginEmail = async () => {
-  const email = prompt("Email:");
-  const senha = prompt("Senha (mín. 6 caracteres):");
-
-  try {
-    await signInWithEmailAndPassword(auth, email, senha);
-  } catch {
-    await createUserWithEmailAndPassword(auth, email, senha);
-  }
-};
-
-onAuthStateChanged(auth, user => {
-  if (!user) return;
-
-  UID = user.uid;
-
-  telaAuth.style.display = "none";
-  telaLogin.style.display = "block";
-});
 
 
 /* =========================
@@ -308,6 +310,7 @@ window.rolarDado = () => {
 
 </body>
 </html>
+
 
 
 
