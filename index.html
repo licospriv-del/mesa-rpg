@@ -36,24 +36,35 @@ button,input{
 
 <h1>Mesa de RPG 🎲</h1>
 
+<!-- SENHA GLOBAL -->
 <div id="telaSenha">
   <input id="senhaGlobal" type="password" placeholder="Senha da mesa">
   <button id="btnSenha">Entrar</button>
 </div>
 
+<!-- AUTH -->
 <div id="telaAuth" style="display:none">
   <input id="email" type="email" placeholder="Email">
   <input id="senha" type="password" placeholder="Senha">
   <button id="btnLogin">Entrar / Cadastrar</button>
 </div>
 
-  <div id="telaLogin" style="display:none">
-  <button id="btnVoltar" style="display:none">⬅ Voltar</button>
+<!-- ESCOLHA -->
+<div id="telaLogin" style="display:none">
   <button id="btnJogador">Jogador</button>
   <button id="btnMestre">Mestre</button>
 </div>
 
+<!-- PERSONAGENS -->
+<div id="telaPersonagens" style="display:none">
+  <button id="btnVoltar">⬅ Voltar</button>
+  <h3>Escolha personagem</h3>
+  <div id="listaPersonagens"></div>
+</div>
+
+<!-- PAINEL -->
 <div id="painel" style="display:none">
+  <button id="btnSairMesa">🚪 Sair da mesa</button>
   <h2 id="bemVindo"></h2>
 
   <div id="controleMestre" class="box" style="display:none">
@@ -77,7 +88,8 @@ import {
   getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  onAuthStateChanged
+  onAuthStateChanged,
+  signOut
 } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 import {
   getDatabase,
@@ -89,112 +101,103 @@ import {
   onDisconnect
 } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
-/* ===== FIREBASE CONFIG (REAL, FUNCIONANDO) ===== */
+/* FIREBASE */
 const firebaseConfig = {
   apiKey: "AIzaSyCzAXZ0RWY-RtgKVDUeqrnmImaN9hAxMmI",
   authDomain: "mesa-rpg-9f195.firebaseapp.com",
   databaseURL: "https://mesa-rpg-9f195-default-rtdb.firebaseio.com",
-  projectId: "mesa-rpg-9f195",
-  storageBucket: "mesa-rpg-9f195.firebasestorage.app",
-  messagingSenderId: "413626106286",
-  appId: "1:413626106286:web:10d5b7dd73c8d083c4883f"
+  projectId: "mesa-rpg-9f195"
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-/* ===== ELEMENTOS ===== */
-  const btnVoltar = document.getElementById("btnVoltar");
+/* ELEMENTOS */
 const telaSenha = document.getElementById("telaSenha");
 const telaAuth = document.getElementById("telaAuth");
 const telaLogin = document.getElementById("telaLogin");
+const telaPersonagens = document.getElementById("telaPersonagens");
 const painel = document.getElementById("painel");
 
-const senhaGlobal = document.getElementById("senhaGlobal");
 const btnSenha = document.getElementById("btnSenha");
-
-const email = document.getElementById("email");
-const senha = document.getElementById("senha");
 const btnLogin = document.getElementById("btnLogin");
-
 const btnJogador = document.getElementById("btnJogador");
 const btnMestre = document.getElementById("btnMestre");
+const btnVoltar = document.getElementById("btnVoltar");
+const btnSairMesa = document.getElementById("btnSairMesa");
 
+const listaPersonagens = document.getElementById("listaPersonagens");
 const bemVindo = document.getElementById("bemVindo");
-
-const controleMestre = document.getElementById("controleMestre");
-const areaJogador = document.getElementById("areaJogador");
-
-const btnRolar = document.getElementById("btnRolar");
-const btnDT = document.getElementById("btnDT");
-const btnLimpar = document.getElementById("btnLimpar");
-
-const dtAtual = document.getElementById("dtAtual");
-const listaJogadores = document.getElementById("listaJogadores");
-const historico = document.getElementById("historico");
 const infoJogador = document.getElementById("infoJogador");
 
-/* ===== VARIÁVEIS ===== */
+const senhaGlobal = document.getElementById("senhaGlobal");
+const email = document.getElementById("email");
+const senha = document.getElementById("senha");
+
+/* VARS */
 let UID = null;
 let nickAtual = null;
 let DT = 0;
 
-/* ===== SENHA GLOBAL ===== */
-btnSenha.addEventListener("click", () => {
-  if (senhaGlobal.value !== "somosumbra") {
-    alert("Senha incorreta");
-    return;
-  }
-  telaSenha.style.display = "none";
-  telaAuth.style.display = "block";
-});
+/* SENHA */
+btnSenha.onclick = () => {
+  if (senhaGlobal.value !== "somosumbra") return alert("Senha incorreta");
+  telaSenha.style.display="none";
+  telaAuth.style.display="block";
+};
 
-/* ===== AUTH ===== */
-btnLogin.addEventListener("click", async () => {
+/* AUTH */
+btnLogin.onclick = async () => {
   try {
     await signInWithEmailAndPassword(auth, email.value, senha.value);
-  } catch (e) {
+  } catch {
     await createUserWithEmailAndPassword(auth, email.value, senha.value);
   }
-});
+};
 
 onAuthStateChanged(auth, user => {
   if (!user) return;
   UID = user.uid;
-  telaAuth.style.display = "none";
-  telaLogin.style.display = "block";
+  telaAuth.style.display="none";
+  telaLogin.style.display="block";
 });
 
-/* ===== ESCOLHA ===== */
-btnJogador.addEventListener("click", () => {
-  const base = ref(db, `usuarios/${UID}/personagens`);
-  onValue(base, snap => {
-    telaLogin.innerHTML = "<h3>Escolha personagem</h3>";
+/* JOGADOR */
+btnJogador.onclick = () => {
+  telaLogin.style.display="none";
+  telaPersonagens.style.display="block";
+  listaPersonagens.innerHTML = "";
+
+  onValue(ref(db, `usuarios/${UID}/personagens`), snap => {
+    listaPersonagens.innerHTML="";
     snap.forEach(p => {
-      const b = document.createElement("button");
-      b.textContent = p.key;
-      b.onclick = () => entrarPersonagem(p.key);
-      telaLogin.appendChild(b);
+      const b=document.createElement("button");
+      b.textContent=p.key;
+      b.onclick=()=>entrarPersonagem(p.key);
+      listaPersonagens.appendChild(b);
     });
-    const novo = document.createElement("button");
-    novo.textContent = "➕ Novo personagem";
-    novo.onclick = novoPersonagem;
-    telaLogin.appendChild(novo);
-  }, { onlyOnce:true });
-});
-  btnVoltar.addEventListener("click", () => {
-  voltarParaEscolha();
-});
 
+    const novo=document.createElement("button");
+    novo.textContent="➕ Novo personagem";
+    novo.onclick=novoPersonagem;
+    listaPersonagens.appendChild(novo);
+  },{onlyOnce:true});
+};
 
-btnMestre.addEventListener("click", () => {
+btnVoltar.onclick = () => {
+  telaPersonagens.style.display="none";
+  telaLogin.style.display="block";
+};
+
+/* MESTRE */
+btnMestre.onclick = () => {
   const s = prompt("Senha do mestre");
   if (s !== "souomestredosmagos") return alert("Senha errada");
   iniciar("mestre");
-});
+};
 
-/* ===== JOGADOR ===== */
+/* PERSONAGEM */
 function novoPersonagem(){
   const n = prompt("Nome do personagem");
   if (!n) return;
@@ -204,97 +207,35 @@ function novoPersonagem(){
 function entrarPersonagem(nick, novo=false){
   nickAtual = nick;
   const r = ref(db, `jogadores/${UID}_${nick}`);
-  set(r,{uid:UID,nick,rolls:1,dado:20,online:true});
-  if(novo) set(ref(db,`usuarios/${UID}/personagens/${nick}`),{criado:Date.now()});
+  set(r,{uid:UID,nick,online:true});
+  if(novo) set(ref(db,`usuarios/${UID}/personagens/${nick}`),true);
   onDisconnect(r).remove();
   iniciar("jogador");
 }
 
-/* ===== INICIAR ===== */
+/* INICIAR */
 function iniciar(tipo){
-  telaLogin.style.display="none";
+  telaPersonagens.style.display="none";
   painel.style.display="block";
   bemVindo.innerText = nickAtual || "Mestre";
+}
 
-  ouvirDT();
-  ouvirHistorico();
-
-  if(tipo==="mestre"){
-    controleMestre.style.display="block";
-    ouvirJogadores();
-  }else{
-    areaJogador.style.display="block";
-    ouvirStatusJogador();
+/* SAIR DA MESA */
+btnSairMesa.onclick = async () => {
+  if(nickAtual){
+    remove(ref(db,`jogadores/${UID}_${nickAtual}`));
   }
-}
+  nickAtual=null;
+  painel.style.display="none";
+  telaLogin.style.display="block";
+};
 
-/* ===== FIREBASE ===== */
-function ouvirJogadores(){
-  onValue(ref(db,"jogadores"), snap=>{
-    listaJogadores.innerHTML="";
-    snap.forEach(j=>{
-      if(j.val().online){
-        const d=document.createElement("div");
-        d.textContent=j.val().nick;
-        listaJogadores.appendChild(d);
-      }
-    });
-  });
-}
-
-function ouvirHistorico(){
-  onValue(ref(db,"historico"), snap=>{
-    historico.innerHTML="";
-    snap.forEach(s=>{
-      const li=document.createElement("li");
-      li.textContent=s.val();
-      historico.prepend(li);
-    });
-  });
-}
-
-function ouvirDT(){
-  onValue(ref(db,"DT"), s=>DT=Number(s.val())||0);
-}
-
-function ouvirStatusJogador(){
-  onValue(ref(db,`jogadores/${UID}_${nickAtual}`), s=>{
-    if(!s.val()) return;
-    infoJogador.innerText=`DT ${DT}`;
-  });
-}
-
-/* ===== AÇÕES ===== */
-btnRolar.addEventListener("click", ()=>{
-  const r=ref(db,`jogadores/${UID}_${nickAtual}`);
-  onValue(r,s=>{
-    if(!s.val()||s.val().rolls<=0)return;
-    const v=Math.floor(Math.random()*20)+1;
-    push(ref(db,"historico"),`${nickAtual} rolou ${v}`);
-    set(ref(db,`${r.key}/rolls`),0);
-  },{onlyOnce:true});
+/* ROLAR */
+document.getElementById("btnRolar")?.addEventListener("click",()=>{
+  const v=Math.floor(Math.random()*20)+1;
+  push(ref(db,"historico"),`${nickAtual} rolou ${v}`);
 });
-
-btnDT.addEventListener("click", ()=>{
-  set(ref(db,"DT"),Number(dtAtual.value));
-});
-
-btnLimpar.addEventListener("click", ()=>{
-  remove(ref(db,"historico"));
-});
-
-function voltarParaEscolha() {
-  telaLogin.innerHTML = "";
-  telaLogin.appendChild(btnVoltar);
-  telaLogin.appendChild(btnJogador);
-  telaLogin.appendChild(btnMestre);
-
-  btnVoltar.style.display = "none";
-}
-
-  
 </script>
 
 </body>
 </html>
-
