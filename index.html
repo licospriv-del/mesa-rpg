@@ -47,7 +47,8 @@ button,input{
   <button id="btnLogin">Entrar / Cadastrar</button>
 </div>
 
-<div id="telaLogin" style="display:none">
+  <div id="telaLogin" style="display:none">
+  <button id="btnVoltar" style="display:none">⬅ Voltar</button>
   <button id="btnJogador">Jogador</button>
   <button id="btnMestre">Mestre</button>
 </div>
@@ -104,6 +105,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 /* ===== ELEMENTOS ===== */
+  const btnVoltar = document.getElementById("btnVoltar");
 const telaSenha = document.getElementById("telaSenha");
 const telaAuth = document.getElementById("telaAuth");
 const telaLogin = document.getElementById("telaLogin");
@@ -181,6 +183,10 @@ btnJogador.addEventListener("click", () => {
     telaLogin.appendChild(novo);
   }, { onlyOnce:true });
 });
+  btnVoltar.addEventListener("click", () => {
+  voltarParaEscolha();
+});
+
 
 btnMestre.addEventListener("click", () => {
   const s = prompt("Senha do mestre");
@@ -276,7 +282,19 @@ btnDT.addEventListener("click", ()=>{
 btnLimpar.addEventListener("click", ()=>{
   remove(ref(db,"historico"));
 });
+
+function voltarParaEscolha() {
+  telaLogin.innerHTML = "";
+  telaLogin.appendChild(btnVoltar);
+  telaLogin.appendChild(btnJogador);
+  telaLogin.appendChild(btnMestre);
+
+  btnVoltar.style.display = "none";
+}
+
+  
 </script>
 
 </body>
 </html>
+
