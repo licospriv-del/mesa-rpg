@@ -24,7 +24,6 @@ button,input,select{width:100%;padding:12px;margin:6px 0;font-size:16px}
 
 <h1>Mesa de RPG 🎲</h1>
 
-<!-- SALA -->
 <div id="telaSala">
   <button id="btnCriarSala">Criar sala</button>
   <button id="btnMostrarEntrar">Entrar na sala</button>
@@ -34,32 +33,27 @@ button,input,select{width:100%;padding:12px;margin:6px 0;font-size:16px}
   </div>
 </div>
 
-<!-- SENHA MESTRE -->
 <div id="telaSenhaMestre" style="display:none">
   <input id="senhaMestreCriacao" type="password" placeholder="Senha do mestre">
   <button id="btnConfirmarSenhaMestre">Confirmar</button>
 </div>
 
-<!-- AUTH -->
 <div id="telaAuth" style="display:none">
   <input id="email" type="email" placeholder="Email">
   <input id="senha" type="password" placeholder="Senha">
   <button id="btnLogin">Entrar / Cadastrar</button>
 </div>
 
-<!-- ESCOLHA -->
 <div id="telaLogin" style="display:none">
   <button id="btnJogador">Jogador</button>
   <button id="btnMestre">Mestre</button>
 </div>
 
-<!-- PERSONAGENS -->
 <div id="telaPersonagens" style="display:none">
   <button id="btnVoltar">⬅ Voltar</button>
   <div id="listaPersonagens"></div>
 </div>
 
-<!-- PAINEL -->
 <div id="painel" style="display:none">
   <button id="btnSairMesa">🚪 Sair da mesa</button>
 
@@ -109,23 +103,19 @@ const app=initializeApp({
 const auth=getAuth(app);
 const db=getDatabase(app);
 
-/* ===== ESTADO GLOBAL ===== */
+/* ESTADO */
 let UID=null,nickAtual=null,tipoAtual=null,salaAtual=null,DT=0;
 let salaEscolhida=false;
 
-/* ===== TELAS ===== */
-const telas=[
-  telaSala,telaSenhaMestre,telaAuth,
-  telaLogin,telaPersonagens,painel
-];
+/* TELAS */
+const telas=[telaSala,telaSenhaMestre,telaAuth,telaLogin,telaPersonagens,painel];
 const esconderTudo=()=>telas.forEach(t=>t.style.display="none");
 
-/* ===== RESET TOTAL (EVITA LOGIN AUTOMÁTICO) ===== */
-await signOut(auth);
+/* INICIAL */
 esconderTudo();
 telaSala.style.display="block";
 
-/* ===== SALA ===== */
+/* SALA */
 function gerarCodigo(){
   const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*";
   return Array.from({length:8},()=>c[Math.floor(Math.random()*c.length)]).join("");
@@ -137,19 +127,17 @@ btnCriarSala.onclick=()=>{
 };
 
 btnConfirmarSenhaMestre.onclick=async()=>{
-  const senhaSala=senhaMestreCriacao.value;
-  if(!senhaSala)return;
+  if(!senhaMestreCriacao.value)return;
 
   let codigo;
-  do{
-    codigo=gerarCodigo();
-  }while((await get(ref(db,"salas/"+codigo))).exists());
+  do{ codigo=gerarCodigo(); }
+  while((await get(ref(db,"salas/"+codigo))).exists());
 
   salaAtual=codigo;
   salaEscolhida=true;
 
   await set(ref(db,"salas/"+codigo),{
-    senhaMestre:senhaSala,
+    senhaMestre:senhaMestreCriacao.value,
     membros:1
   });
 
@@ -163,41 +151,47 @@ btnMostrarEntrar.onclick=()=>{
 };
 
 btnEntrarSala.onclick=async()=>{
-  const c=codigoSalaInput.value;
-  const s=await get(ref(db,"salas/"+c));
-  if(!s.exists())return alert("Sala inexistente");
-  salaAtual=c;
+  const snap=await get(ref(db,"salas/"+codigoSalaInput.value));
+  if(!snap.exists())return alert("Sala inexistente");
+  salaAtual=codigoSalaInput.value;
   salaEscolhida=true;
-  await set(ref(db,`salas/${c}/membros`),s.val().membros+1);
+  await set(ref(db,`salas/${salaAtual}/membros`),snap.val().membros+1);
   esconderTudo();
   telaAuth.style.display="block";
 };
 
-/* ===== AUTH ===== */
-btnLogin.onclick = async () => {
-  try {
-    // tenta login normal
-    await signInWithEmailAndPassword(auth, email.value, senha.value);
-  } catch (e) {
-    if (e.code === "auth/user-not-found") {
-      // usuário não existe → cria
-      try {
-        await createUserWithEmailAndPassword(auth, email.value, senha.value);
-      } catch (err) {
-        alert("Erro ao criar conta: " + err.message);
+/* AUTH */
+btnLogin.onclick=async()=>{
+  if(!email.value||!senha.value)return;
+
+  try{
+    await signInWithEmailAndPassword(auth,email.value,senha.value);
+  }catch(e){
+    if(e.code==="auth/user-not-found"){
+      try{
+        await createUserWithEmailAndPassword(auth,email.value,senha.value);
+      }catch(err){
+        alert("Erro ao criar conta");
+        return;
       }
-    } else if (e.code === "auth/wrong-password") {
-      // usuário existe, senha errada
+    }else if(e.code==="auth/wrong-password"){
       alert("Senha incorreta para este email.");
-    } else if (e.code === "auth/invalid-credential") {
-      alert("Email ou senha inválidos.");
-    } else {
-      alert("Erro ao autenticar: " + e.message);
+      return;
+    }else{
+      alert("Erro ao autenticar");
+      return;
     }
   }
 };
 
-/* ===== ESCOLHA ===== */
+onAuthStateChanged(auth,user=>{
+  if(!user||!salaEscolhida)return;
+  UID=user.uid;
+  esconderTudo();
+  telaLogin.style.display="block";
+});
+
+/* ESCOLHA */
 btnMestre.onclick=async()=>{
   const s=await get(ref(db,`salas/${salaAtual}/senhaMestre`));
   if(prompt("Senha do mestre")!==s.val())return alert("Senha incorreta");
@@ -223,7 +217,12 @@ btnJogador.onclick=()=>{
   },{onlyOnce:true});
 };
 
-/* ===== JOGO ===== */
+btnVoltar.onclick=()=>{
+  esconderTudo();
+  telaLogin.style.display="block";
+};
+
+/* JOGO */
 function entrarPersonagem(nick,novo){
   nickAtual=nick;
   tipoAtual="jogador";
@@ -239,10 +238,8 @@ function iniciar(){
   esconderTudo();
   painel.style.display="block";
   bemVindo.textContent=tipoAtual==="mestre"?"Mestre":nickAtual;
-
   ouvirDT();
   ouvirHistorico();
-
   if(tipoAtual==="mestre"){
     codigoTopo.style.display="flex";
     codigoTexto.textContent="Código: "+salaAtual;
@@ -254,13 +251,12 @@ function iniciar(){
   }
 }
 
-/* ===== FUNÇÕES ANTIGAS ===== */
+/* FUNÇÕES */
 function ouvirJogadores(){
   onValue(ref(db,`salas/${salaAtual}/jogadores`),snap=>{
     listaJogadores.innerHTML="";
     snap.forEach(j=>{
-      const d=j.val();
-      if(!d?.online)return;
+      const d=j.val(); if(!d?.online)return;
       const div=document.createElement("div");
       const btn=document.createElement("button");
       btn.textContent=d.nick;
@@ -298,8 +294,7 @@ function ouvirStatusJogador(){
   const id=`${UID}_${nickAtual}`;
   onValue(ref(db,`salas/${salaAtual}/jogadores/${id}`),snap=>{
     const j=snap.val();
-    if(!j)return;
-    infoJogador.textContent=`Rolagens: ${j.rolls} | Dado: d${j.dado} | DT: ${DT}`;
+    if(j)infoJogador.textContent=`Rolagens: ${j.rolls} | Dado: d${j.dado} | DT: ${DT}`;
   });
 }
 
@@ -322,7 +317,7 @@ window.rolarDado=()=>{
   const id=`${UID}_${nickAtual}`;
   onValue(ref(db,`salas/${salaAtual}/jogadores/${id}`),snap=>{
     const j=snap.val();
-    if(!j||j.rolls<=0){alert("Sem permissão");return;}
+    if(!j||j.rolls<=0)return alert("Sem permissão");
     const v=Math.floor(Math.random()*j.dado)+1;
     const res=v>=DT?"SUCESSO":"FALHA";
     push(ref(db,`salas/${salaAtual}/historico`),
@@ -333,10 +328,7 @@ window.rolarDado=()=>{
 };
 
 btnSairMesa.onclick=async()=>{
-  if(nickAtual){
-    remove(ref(db,`salas/${salaAtual}/jogadores/${UID}_${nickAtual}`));
-    nickAtual=null;
-  }
+  if(nickAtual) remove(ref(db,`salas/${salaAtual}/jogadores/${UID}_${nickAtual}`));
   const mRef=ref(db,`salas/${salaAtual}/membros`);
   const s=await get(mRef);
   if(s.val()-1<=0) remove(ref(db,`salas/${salaAtual}`));
@@ -344,15 +336,7 @@ btnSairMesa.onclick=async()=>{
   await signOut(auth);
   location.reload();
 };
-
-btnVoltar.onclick = () => {
-  esconderTudo();
-  telaLogin.style.display = "block";
-};
-</script>
-  
 </script>
 
 </body>
 </html>
-
