@@ -88,6 +88,7 @@ import {
   onDisconnect
 } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
+/* ===== FIREBASE ===== */
 const firebaseConfig = {
   apiKey: "SUA_API_KEY",
   authDomain: "mesa-rpg-9f195.firebaseapp.com",
@@ -99,6 +100,37 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
+/* ===== ELEMENTOS (CORREÇÃO PRINCIPAL) ===== */
+const telaSenha = document.getElementById("telaSenha");
+const telaAuth = document.getElementById("telaAuth");
+const telaLogin = document.getElementById("telaLogin");
+const painel = document.getElementById("painel");
+
+const senhaGlobal = document.getElementById("senhaGlobal");
+const btnSenha = document.getElementById("btnSenha");
+
+const email = document.getElementById("email");
+const senha = document.getElementById("senha");
+const btnLogin = document.getElementById("btnLogin");
+
+const btnJogador = document.getElementById("btnJogador");
+const btnMestre = document.getElementById("btnMestre");
+
+const bemVindo = document.getElementById("bemVindo");
+
+const controleMestre = document.getElementById("controleMestre");
+const areaJogador = document.getElementById("areaJogador");
+
+const btnRolar = document.getElementById("btnRolar");
+const btnDT = document.getElementById("btnDT");
+const btnLimpar = document.getElementById("btnLimpar");
+
+const dtAtual = document.getElementById("dtAtual");
+const listaJogadores = document.getElementById("listaJogadores");
+const historico = document.getElementById("historico");
+const infoJogador = document.getElementById("infoJogador");
+
+/* ===== VARIÁVEIS ===== */
 let UID = null;
 let nickAtual = null;
 let DT = 0;
