@@ -103,19 +103,16 @@ const app=initializeApp({
 const auth=getAuth(app);
 const db=getDatabase(app);
 
-/* ESTADO */
 let UID=null,nickAtual=null,tipoAtual=null,salaAtual=null,DT=0;
 let salaEscolhida=false;
 
-/* TELAS */
 const telas=[telaSala,telaSenhaMestre,telaAuth,telaLogin,telaPersonagens,painel];
 const esconderTudo=()=>telas.forEach(t=>t.style.display="none");
 
-/* INICIAL */
+await signOut(auth);
 esconderTudo();
 telaSala.style.display="block";
 
-/* SALA */
 function gerarCodigo(){
   const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*";
   return Array.from({length:8},()=>c[Math.floor(Math.random()*c.length)]).join("");
@@ -128,26 +125,19 @@ btnCriarSala.onclick=()=>{
 
 btnConfirmarSenhaMestre.onclick=async()=>{
   if(!senhaMestreCriacao.value)return;
-
   let codigo;
-  do{ codigo=gerarCodigo(); }
+  do{codigo=gerarCodigo();}
   while((await get(ref(db,"salas/"+codigo))).exists());
 
   salaAtual=codigo;
   salaEscolhida=true;
-
-  await set(ref(db,"salas/"+codigo),{
-    senhaMestre:senhaMestreCriacao.value,
-    membros:1
-  });
-
+  await set(ref(db,"salas/"+codigo),{senhaMestre:senhaMestreCriacao.value,membros:1});
   esconderTudo();
   telaAuth.style.display="block";
 };
 
 btnMostrarEntrar.onclick=()=>{
-  areaEntrarSala.style.display=
-    areaEntrarSala.style.display==="none"?"block":"none";
+  areaEntrarSala.style.display=areaEntrarSala.style.display==="none"?"block":"none";
 };
 
 btnEntrarSala.onclick=async()=>{
@@ -160,20 +150,12 @@ btnEntrarSala.onclick=async()=>{
   telaAuth.style.display="block";
 };
 
-/* AUTH */
 btnLogin.onclick=async()=>{
-  if(!email.value||!senha.value)return;
-
   try{
     await signInWithEmailAndPassword(auth,email.value,senha.value);
   }catch(e){
     if(e.code==="auth/user-not-found"){
-      try{
-        await createUserWithEmailAndPassword(auth,email.value,senha.value);
-      }catch(err){
-        alert("Erro ao criar conta");
-        return;
-      }
+      await createUserWithEmailAndPassword(auth,email.value,senha.value);
     }else if(e.code==="auth/wrong-password"){
       alert("Senha incorreta para este email.");
       return;
@@ -184,14 +166,13 @@ btnLogin.onclick=async()=>{
   }
 };
 
-onAuthStateChanged(auth,user=>{
-  if(!user||!salaEscolhida)return;
-  UID=user.uid;
+onAuthStateChanged(auth,u=>{
+  if(!u||!salaEscolhida)return;
+  UID=u.uid;
   esconderTudo();
   telaLogin.style.display="block";
 });
 
-/* ESCOLHA */
 btnMestre.onclick=async()=>{
   const s=await get(ref(db,`salas/${salaAtual}/senhaMestre`));
   if(prompt("Senha do mestre")!==s.val())return alert("Senha incorreta");
@@ -222,7 +203,6 @@ btnVoltar.onclick=()=>{
   telaLogin.style.display="block";
 };
 
-/* JOGO */
 function entrarPersonagem(nick,novo){
   nickAtual=nick;
   tipoAtual="jogador";
@@ -251,12 +231,12 @@ function iniciar(){
   }
 }
 
-/* FUNÇÕES */
 function ouvirJogadores(){
   onValue(ref(db,`salas/${salaAtual}/jogadores`),snap=>{
     listaJogadores.innerHTML="";
     snap.forEach(j=>{
-      const d=j.val(); if(!d?.online)return;
+      const d=j.val();
+      if(!d?.online)return;
       const div=document.createElement("div");
       const btn=document.createElement("button");
       btn.textContent=d.nick;
@@ -328,10 +308,10 @@ window.rolarDado=()=>{
 };
 
 btnSairMesa.onclick=async()=>{
-  if(nickAtual) remove(ref(db,`salas/${salaAtual}/jogadores/${UID}_${nickAtual}`));
+  if(nickAtual)remove(ref(db,`salas/${salaAtual}/jogadores/${UID}_${nickAtual}`));
   const mRef=ref(db,`salas/${salaAtual}/membros`);
   const s=await get(mRef);
-  if(s.val()-1<=0) remove(ref(db,`salas/${salaAtual}`));
+  if(s.val()-1<=0)remove(ref(db,`salas/${salaAtual}`));
   else set(mRef,s.val()-1);
   await signOut(auth);
   location.reload();
