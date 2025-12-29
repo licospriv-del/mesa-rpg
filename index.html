@@ -6,33 +6,40 @@
 <title>Mesa de RPG</title>
 
 <style>
-body {
+body{
   background:#111;
   color:#fff;
   font-family:Arial, sans-serif;
   padding:16px;
-  margin:0;
+  margin:0
 }
-button, input, select {
+h1,h2,h3,h4{margin:8px 0}
+button,input,select{
+  width:100%;
   padding:12px;
   margin:6px 0;
-  width:100%;
-  font-size:16px;
+  font-size:16px
 }
-.box {
+.box{
   border:1px solid #444;
   padding:12px;
   margin-top:12px;
-  border-radius:8px;
+  border-radius:8px
 }
-#listaJogadores > div {
+#listaJogadores>div{
   display:flex;
   flex-direction:column;
   gap:6px;
   margin-bottom:10px;
+  border-bottom:1px solid #333;
+  padding-bottom:8px
 }
-@media (min-width:768px) {
-  body { max-width:700px; margin:auto }
+ul{padding-left:16px}
+li{margin-bottom:6px;font-size:14px}
+@media(min-width:768px){
+  body{max-width:700px;margin:auto}
+  button,input,select{width:auto}
+  #listaJogadores>div{flex-direction:row;align-items:center;gap:10px}
 }
 </style>
 </head>
@@ -41,44 +48,46 @@ button, input, select {
 
 <h1>Mesa de RPG 🎲</h1>
 
-<!-- LOGIN -->
-<div id="telaLogin">
-  <button onclick="mostrarJogador()">Jogador</button>
-  <button onclick="mostrarMestre()">Mestre</button>
+<!-- SENHA GLOBAL -->
+<div id="telaSenha">
+  <input id="senhaGlobal" type="password" placeholder="Senha da mesa">
+  <button id="btnSenha">Entrar</button>
+</div>
 
-  <div id="loginJogador" style="display:none">
-    <input id="nickJogador" placeholder="Nickname">
-    <button onclick="entrarJogador()">Entrar</button>
-    <button onclick="voltar()">⬅ Voltar</button>
-  </div>
+<!-- AUTH -->
+<div id="telaAuth" style="display:none">
+  <input id="email" type="email" placeholder="Email">
+  <input id="senha" type="password" placeholder="Senha">
+  <button id="btnLogin">Entrar / Cadastrar</button>
+</div>
 
-  <div id="loginMestre" style="display:none">
-    <input id="nickMestre" placeholder="Nick do Mestre">
-    <input id="senhaMestre" placeholder="Senha">
-    <button onclick="entrarMestre()">Entrar</button>
-    <button onclick="voltar()">⬅ Voltar</button>
-  </div>
+<!-- ESCOLHA -->
+<div id="telaLogin" style="display:none">
+  <button id="btnJogador">Jogador</button>
+  <button id="btnMestre">Mestre</button>
+</div>
+
+<!-- PERSONAGENS -->
+<div id="telaPersonagens" style="display:none">
+  <button id="btnVoltar">⬅ Voltar</button>
+  <div id="listaPersonagens"></div>
 </div>
 
 <!-- PAINEL -->
 <div id="painel" style="display:none">
+  <button id="btnSairMesa">🚪 Sair da mesa</button>
   <h2 id="bemVindo"></h2>
-  <button onclick="logout()">🚪 Sair</button>
 
-  <!-- MESTRE -->
   <div id="controleMestre" class="box" style="display:none">
     <h3>Controle do Mestre</h3>
-
     <label>DT</label>
     <input id="dtAtual" type="number">
     <button onclick="definirDT()">Definir DT</button>
     <button onclick="limparHistorico()">🧹 Limpar histórico</button>
-
     <h4>Jogadores ativos</h4>
     <div id="listaJogadores"></div>
   </div>
 
-  <!-- JOGADOR -->
   <div id="areaJogador" class="box" style="display:none">
     <p id="infoJogador"></p>
     <button onclick="rolarDado()">🎲 Rolar dado</button>
@@ -90,181 +99,247 @@ button, input, select {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-import { getDatabase, ref, set, onValue, push, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
+import {
+  getDatabase,
+  ref,
+  set,
+  onValue,
+  remove,
+  push,
+  onDisconnect
+} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
-const firebaseConfig = {
-  apiKey: "SUA_API_KEY",
-  authDomain: "mesa-rpg-9f195.firebaseapp.com",
-  databaseURL: "https://mesa-rpg-9f195-default-rtdb.firebaseio.com",
-  projectId: "mesa-rpg-9f195"
+const firebaseConfig={
+  apiKey:"AIzaSyCzAXZ0RWY-RtgKVDUeqrnmImaN9hAxMmI",
+  authDomain:"mesa-rpg-9f195.firebaseapp.com",
+  databaseURL:"https://mesa-rpg-9f195-default-rtdb.firebaseio.com",
+  projectId:"mesa-rpg-9f195"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getDatabase(app);
 
-let DT = 0;
+const telaSenha=document.getElementById("telaSenha");
+const telaAuth=document.getElementById("telaAuth");
+const telaLogin=document.getElementById("telaLogin");
+const telaPersonagens=document.getElementById("telaPersonagens");
+const painel=document.getElementById("painel");
 
-/* ===== LOGIN ===== */
+const btnSenha=document.getElementById("btnSenha");
+const btnLogin=document.getElementById("btnLogin");
+const btnJogador=document.getElementById("btnJogador");
+const btnMestre=document.getElementById("btnMestre");
+const btnVoltar=document.getElementById("btnVoltar");
+const btnSairMesa=document.getElementById("btnSairMesa");
 
-window.mostrarJogador = () => {
-  loginJogador.style.display = "block";
-  loginMestre.style.display = "none";
+const listaPersonagens=document.getElementById("listaPersonagens");
+const bemVindo=document.getElementById("bemVindo");
+const senhaGlobal=document.getElementById("senhaGlobal");
+const email=document.getElementById("email");
+const senha=document.getElementById("senha");
+
+let UID=null;
+let nickAtual=null;
+let tipoAtual=null;
+let passouSenhaGlobal=false;
+let DT=0;
+
+function esconderTudo(){
+  telaSenha.style.display="none";
+  telaAuth.style.display="none";
+  telaLogin.style.display="none";
+  telaPersonagens.style.display="none";
+  painel.style.display="none";
+  controleMestre.style.display="none";
+  areaJogador.style.display="none";
+}
+
+await signOut(auth);
+esconderTudo();
+telaSenha.style.display="block";
+
+btnSenha.onclick=()=>{
+  if(senhaGlobal.value!=="somosumbra"){alert("Senha incorreta");return;}
+  passouSenhaGlobal=true;
+  esconderTudo();
+  telaAuth.style.display="block";
 };
 
-window.mostrarMestre = () => {
-  loginMestre.style.display = "block";
-  loginJogador.style.display = "none";
+btnLogin.onclick=async()=>{
+  try{
+    await signInWithEmailAndPassword(auth,email.value,senha.value);
+  }catch{
+    await createUserWithEmailAndPassword(auth,email.value,senha.value);
+  }
 };
 
-window.voltar = () => {
-  loginJogador.style.display = "none";
-  loginMestre.style.display = "none";
+onAuthStateChanged(auth,user=>{
+  if(!passouSenhaGlobal)return;
+  esconderTudo();
+  if(user){
+    UID=user.uid;
+    telaLogin.style.display="block";
+  }else{
+    telaAuth.style.display="block";
+  }
+});
+
+btnJogador.onclick=()=>{
+  esconderTudo();
+  telaPersonagens.style.display="block";
+  listaPersonagens.innerHTML="";
+  onValue(ref(db,`usuarios/${UID}/personagens`),snap=>{
+    snap.forEach(p=>{
+      const b=document.createElement("button");
+      b.textContent=p.key;
+      b.onclick=()=>entrarPersonagem(p.key,false);
+      listaPersonagens.appendChild(b);
+    });
+    const novo=document.createElement("button");
+    novo.textContent="➕ Novo personagem";
+    novo.onclick=()=>entrarPersonagem(prompt("Nome do personagem"),true);
+    listaPersonagens.appendChild(novo);
+  },{onlyOnce:true});
 };
 
-window.entrarJogador = () => {
-  const nick = nickJogador.value.trim();
-  if (!nick) return alert("Nick vazio");
+btnVoltar.onclick=()=>{
+  esconderTudo();
+  telaLogin.style.display="block";
+};
 
-  localStorage.clear();
-  localStorage.setItem("tipo","jogador");
-  localStorage.setItem("nick",nick);
+btnMestre.onclick=()=>{
+  if(prompt("Senha do mestre")!=="souomestredosmagos")return;
+  tipoAtual="mestre";
+  iniciar();
+};
 
-  const r = ref(db,"jogadores/"+nick);
-  set(r,{ rolls:0, dado:20, online:true });
+function entrarPersonagem(nick,novo){
+  if(!nick)return;
+  nickAtual=nick;
+  tipoAtual="jogador";
+  const id=`${UID}_${nick}`;
+  const r=ref(db,`jogadores/${id}`);
+  set(r,{nick,rolls:0,dado:20,online:true});
+  if(novo) set(ref(db,`usuarios/${UID}/personagens/${nick}`),true);
   onDisconnect(r).remove();
-
   iniciar();
-};
+}
 
-window.entrarMestre = () => {
-  if (senhaMestre.value !== "souomestredosmagos")
-    return alert("Senha errada");
-
-  localStorage.clear();
-  localStorage.setItem("tipo","mestre");
-  localStorage.setItem("nick", nickMestre.value || "Mestre");
-
-  iniciar();
-};
-
-window.logout = () => {
-  localStorage.clear();
-  location.reload();
-};
-
-/* ===== INICIAR ===== */
-
-function iniciar() {
-  telaLogin.style.display = "none";
-  painel.style.display = "block";
-
-  const tipo = localStorage.getItem("tipo");
-  const nick = localStorage.getItem("nick");
-
-  bemVindo.innerText = `${nick} (${tipo})`;
+function iniciar(){
+  esconderTudo();
+  painel.style.display="block";
+  bemVindo.textContent=tipoAtual==="mestre"?"Mestre":nickAtual;
 
   ouvirDT();
   ouvirHistorico();
 
-  if (tipo === "mestre") {
-    controleMestre.style.display = "block";
+  if(tipoAtual==="mestre"){
+    controleMestre.style.display="block";
     ouvirJogadores();
-  } else {
-    areaJogador.style.display = "block";
+  }else{
+    areaJogador.style.display="block";
     ouvirStatusJogador();
   }
 }
 
-/* ===== FIREBASE ===== */
-
-function ouvirJogadores() {
-  onValue(ref(db,"jogadores"), snap => {
+function ouvirJogadores(){
+  onValue(ref(db,"jogadores"),snap=>{
     listaJogadores.innerHTML="";
     snap.forEach(j=>{
       const d=j.val();
-      if(!d?.online) return;
-
+      if(!d?.online)return;
       const div=document.createElement("div");
-
       const btn=document.createElement("button");
-      btn.innerText=j.key;
+      btn.textContent=d.nick;
       btn.onclick=()=>darPermissao(j.key);
-
       const sel=document.createElement("select");
       [4,6,8,10,12,20].forEach(x=>{
         const o=document.createElement("option");
-        o.value=x; o.innerText="d"+x;
+        o.value=x;o.textContent="d"+x;
         sel.appendChild(o);
       });
       sel.value=d.dado||20;
-      sel.onchange=()=>set(ref(db,"jogadores/"+j.key+"/dado"),Number(sel.value));
-
+      sel.onchange=()=>set(ref(db,`jogadores/${j.key}/dado`),Number(sel.value));
       div.append(btn,sel);
       listaJogadores.appendChild(div);
     });
   });
 }
 
-function ouvirDT() {
+function ouvirDT(){
   onValue(ref(db,"DT"),s=>{
     DT=Number(s.val())||0;
   });
 }
 
-function ouvirHistorico() {
-  onValue(ref(db,"historico"),s=>{
+function ouvirHistorico(){
+  onValue(ref(db,"historico"),snap=>{
     historico.innerHTML="";
-    s.forEach(x=>{
+    snap.forEach(x=>{
       const li=document.createElement("li");
-      li.innerText=x.val();
+      li.textContent=x.val();
       historico.prepend(li);
     });
   });
 }
 
-function ouvirStatusJogador() {
-  const nick=localStorage.getItem("nick");
-  onValue(ref(db,"jogadores/"+nick),s=>{
-    const j=s.val();
-    if(!j) return;
-    infoJogador.innerText=`Rolagens: ${j.rolls} | Dado: d${j.dado} | DT: ${DT}`;
+function ouvirStatusJogador(){
+  const id=`${UID}_${nickAtual}`;
+  onValue(ref(db,`jogadores/${id}`),snap=>{
+    const j=snap.val();
+    if(!j)return;
+    infoJogador.textContent=`Rolagens: ${j.rolls} | Dado: d${j.dado} | DT: ${DT}`;
   });
 }
 
-/* ===== AÇÕES ===== */
-
-window.darPermissao = nick => {
+window.darPermissao=id=>{
   const r=Number(prompt("Quantas rolagens?"));
-  if(isNaN(r)) return;
-  set(ref(db,"jogadores/"+nick+"/rolls"),r);
+  if(isNaN(r))return;
+  set(ref(db,`jogadores/${id}/rolls`),r);
 };
 
-window.definirDT = () => {
+window.definirDT=()=>{
   const v=Number(dtAtual.value);
-  if(isNaN(v)) return;
+  if(isNaN(v))return;
   set(ref(db,"DT"),v);
 };
 
-window.limparHistorico = () => {
+window.limparHistorico=()=>{
   if(confirm("Limpar histórico?"))
     remove(ref(db,"historico"));
 };
 
-window.rolarDado = () => {
-  const nick=localStorage.getItem("nick");
-  onValue(ref(db,"jogadores/"+nick),s=>{
-    const j=s.val();
-    if(!j||j.rolls<=0) return alert("Sem permissão");
-
+window.rolarDado=()=>{
+  const id=`${UID}_${nickAtual}`;
+  onValue(ref(db,`jogadores/${id}`),snap=>{
+    const j=snap.val();
+    if(!j||j.rolls<=0){alert("Sem permissão");return;}
     const v=Math.floor(Math.random()*j.dado)+1;
     const res=v>=DT?"SUCESSO":"FALHA";
-
     push(ref(db,"historico"),
-      `${nick} rolou d${j.dado} → ${v} | DT ${DT} → ${res}`
+      `${j.nick} rolou d${j.dado} → ${v} | DT ${DT} → ${res}`
     );
-
-    set(ref(db,"jogadores/"+nick+"/rolls"),j.rolls-1);
+    set(ref(db,`jogadores/${id}/rolls`),j.rolls-1);
   },{onlyOnce:true});
+};
+
+btnSairMesa.onclick=async()=>{
+  if(nickAtual){
+    remove(ref(db,`jogadores/${UID}_${nickAtual}`));
+    nickAtual=null;
+  }
+  await signOut(auth);
+  passouSenhaGlobal=false;
+  esconderTudo();
+  telaSenha.style.display="block";
 };
 </script>
 
