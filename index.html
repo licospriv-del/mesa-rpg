@@ -174,20 +174,21 @@ btnEntrarSala.onclick=async()=>{
 };
 
 /* ===== AUTH ===== */
-btnLogin.onclick=async()=>{
+btnLogin.onclick = async () => {
   try{
     await signInWithEmailAndPassword(auth,email.value,senha.value);
-  }catch{
-    await createUserWithEmailAndPassword(auth,email.value,senha.value);
+  }catch(e){
+    if(e.code === "auth/wrong-password"){
+      alert("Senha incorreta para este email.");
+      return;
+    }
+    if(e.code === "auth/user-not-found"){
+      await createUserWithEmailAndPassword(auth,email.value,senha.value);
+    }else{
+      alert("Erro ao autenticar: " + e.message);
+    }
   }
 };
-
-onAuthStateChanged(auth,u=>{
-  if(!u || !salaEscolhida)return;
-  UID=u.uid;
-  esconderTudo();
-  telaLogin.style.display="block";
-});
 
 /* ===== ESCOLHA ===== */
 btnMestre.onclick=async()=>{
@@ -336,7 +337,15 @@ btnSairMesa.onclick=async()=>{
   await signOut(auth);
   location.reload();
 };
+
+btnVoltar.onclick = () => {
+  esconderTudo();
+  telaLogin.style.display = "block";
+};
+</script>
+  
 </script>
 
 </body>
 </html>
+
