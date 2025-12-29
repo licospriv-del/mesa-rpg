@@ -6,14 +6,14 @@
 <title>Mesa de RPG</title>
 
 <style>
-body {
+body{
   background:#111;
   color:#fff;
   font-family:Arial, sans-serif;
   padding:16px;
   margin:0;
 }
-h1,h2,h3,h4{margin:8px 0}
+h1,h2,h3{margin:8px 0}
 button,input{
   padding:12px;
   margin:6px 0;
@@ -120,6 +120,9 @@ const telaLogin = document.getElementById("telaLogin");
 const telaPersonagens = document.getElementById("telaPersonagens");
 const painel = document.getElementById("painel");
 
+const controleMestre = document.getElementById("controleMestre");
+const areaJogador = document.getElementById("areaJogador");
+
 const btnSenha = document.getElementById("btnSenha");
 const btnLogin = document.getElementById("btnLogin");
 const btnJogador = document.getElementById("btnJogador");
@@ -130,111 +133,179 @@ const btnSairMesa = document.getElementById("btnSairMesa");
 const listaPersonagens = document.getElementById("listaPersonagens");
 const bemVindo = document.getElementById("bemVindo");
 const infoJogador = document.getElementById("infoJogador");
+const historico = document.getElementById("historico");
+const listaJogadores = document.getElementById("listaJogadores");
 
 const senhaGlobal = document.getElementById("senhaGlobal");
 const email = document.getElementById("email");
 const senha = document.getElementById("senha");
+const dtAtual = document.getElementById("dtAtual");
 
 /* VARS */
 let UID = null;
 let nickAtual = null;
 let DT = 0;
 
-/* SENHA */
-btnSenha.onclick = () => {
-  if (senhaGlobal.value !== "somosumbra") return alert("Senha incorreta");
+/* UI */
+function esconderTudo(){
   telaSenha.style.display="none";
+  telaAuth.style.display="none";
+  telaLogin.style.display="none";
+  telaPersonagens.style.display="none";
+  painel.style.display="none";
+  controleMestre.style.display="none";
+  areaJogador.style.display="none";
+}
+
+/* START */
+esconderTudo();
+telaSenha.style.display="block";
+
+/* SENHA GLOBAL */
+btnSenha.onclick = () => {
+  if(senhaGlobal.value !== "somosumbra") return alert("Senha incorreta");
+  esconderTudo();
   telaAuth.style.display="block";
 };
 
 /* AUTH */
 btnLogin.onclick = async () => {
-  try {
-    await signInWithEmailAndPassword(auth, email.value, senha.value);
-  } catch {
-    await createUserWithEmailAndPassword(auth, email.value, senha.value);
+  try{
+    await signInWithEmailAndPassword(auth,email.value,senha.value);
+  }catch{
+    await createUserWithEmailAndPassword(auth,email.value,senha.value);
   }
 };
 
-onAuthStateChanged(auth, user => {
-  if (!user) return;
-  UID = user.uid;
-  telaAuth.style.display="none";
-  telaLogin.style.display="block";
+onAuthStateChanged(auth,user=>{
+  esconderTudo();
+  if(user){
+    UID=user.uid;
+    telaLogin.style.display="block";
+  }else{
+    telaAuth.style.display="block";
+  }
 });
 
-/* JOGADOR */
-btnJogador.onclick = () => {
-  telaLogin.style.display="none";
+/* ESCOLHA */
+btnJogador.onclick=()=>{
+  esconderTudo();
   telaPersonagens.style.display="block";
-  listaPersonagens.innerHTML = "";
+  listaPersonagens.innerHTML="";
 
-  onValue(ref(db, `usuarios/${UID}/personagens`), snap => {
+  onValue(ref(db,`usuarios/${UID}/personagens`),snap=>{
     listaPersonagens.innerHTML="";
-    snap.forEach(p => {
+    snap.forEach(p=>{
       const b=document.createElement("button");
       b.textContent=p.key;
       b.onclick=()=>entrarPersonagem(p.key);
       listaPersonagens.appendChild(b);
     });
-
-    const novo=document.createElement("button");
-    novo.textContent="➕ Novo personagem";
-    novo.onclick=novoPersonagem;
-    listaPersonagens.appendChild(novo);
+    const n=document.createElement("button");
+    n.textContent="➕ Novo personagem";
+    n.onclick=novoPersonagem;
+    listaPersonagens.appendChild(n);
   },{onlyOnce:true});
 };
 
-btnVoltar.onclick = () => {
-  telaPersonagens.style.display="none";
+btnVoltar.onclick=()=>{
+  esconderTudo();
   telaLogin.style.display="block";
 };
 
-/* MESTRE */
-btnMestre.onclick = () => {
-  const s = prompt("Senha do mestre");
-  if (s !== "souomestredosmagos") return alert("Senha errada");
+btnMestre.onclick=()=>{
+  const s=prompt("Senha do mestre");
+  if(s!=="souomestredosmagos")return alert("Senha errada");
   iniciar("mestre");
 };
 
 /* PERSONAGEM */
 function novoPersonagem(){
-  const n = prompt("Nome do personagem");
-  if (!n) return;
+  const n=prompt("Nome do personagem");
+  if(!n)return;
   entrarPersonagem(n,true);
 }
 
-function entrarPersonagem(nick, novo=false){
-  nickAtual = nick;
-  const r = ref(db, `jogadores/${UID}_${nick}`);
+function entrarPersonagem(nick,novo=false){
+  nickAtual=nick;
+  const r=ref(db,`jogadores/${UID}_${nick}`);
   set(r,{uid:UID,nick,online:true});
-  if(novo) set(ref(db,`usuarios/${UID}/personagens/${nick}`),true);
+  if(novo)set(ref(db,`usuarios/${UID}/personagens/${nick}`),true);
   onDisconnect(r).remove();
   iniciar("jogador");
 }
 
 /* INICIAR */
 function iniciar(tipo){
-  telaPersonagens.style.display="none";
+  esconderTudo();
   painel.style.display="block";
-  bemVindo.innerText = nickAtual || "Mestre";
+
+  if(tipo==="mestre"){
+    controleMestre.style.display="block";
+    bemVindo.innerText="Mestre";
+    ouvirJogadores();
+  }
+
+  if(tipo==="jogador"){
+    areaJogador.style.display="block";
+    bemVindo.innerText=nickAtual;
+  }
+
+  ouvirHistorico();
+  ouvirDT();
 }
 
-/* SAIR DA MESA */
-btnSairMesa.onclick = async () => {
-  if(nickAtual){
-    remove(ref(db,`jogadores/${UID}_${nickAtual}`));
-  }
-  nickAtual=null;
-  painel.style.display="none";
-  telaLogin.style.display="block";
-};
+/* FIREBASE */
+function ouvirJogadores(){
+  onValue(ref(db,"jogadores"),snap=>{
+    listaJogadores.innerHTML="";
+    snap.forEach(j=>{
+      if(j.val().online){
+        const d=document.createElement("div");
+        d.textContent=j.val().nick;
+        listaJogadores.appendChild(d);
+      }
+    });
+  });
+}
 
-/* ROLAR */
-document.getElementById("btnRolar")?.addEventListener("click",()=>{
+function ouvirHistorico(){
+  onValue(ref(db,"historico"),snap=>{
+    historico.innerHTML="";
+    snap.forEach(h=>{
+      const li=document.createElement("li");
+      li.textContent=h.val();
+      historico.prepend(li);
+    });
+  });
+}
+
+function ouvirDT(){
+  onValue(ref(db,"DT"),s=>DT=Number(s.val())||0);
+}
+
+/* AÇÕES */
+document.getElementById("btnRolar").onclick=()=>{
   const v=Math.floor(Math.random()*20)+1;
   push(ref(db,"historico"),`${nickAtual} rolou ${v}`);
-});
+};
+
+document.getElementById("btnDT").onclick=()=>{
+  set(ref(db,"DT"),Number(dtAtual.value));
+};
+
+document.getElementById("btnLimpar").onclick=()=>{
+  remove(ref(db,"historico"));
+};
+
+btnSairMesa.onclick=async()=>{
+  if(nickAtual){
+    remove(ref(db,`jogadores/${UID}_${nickAtual}`));
+    nickAtual=null;
+  }
+  esconderTudo();
+  telaLogin.style.display="block";
+};
 </script>
 
 </body>
