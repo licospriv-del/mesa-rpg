@@ -40,14 +40,14 @@ button,input,select{
 <!-- 🔐 SENHA GLOBAL -->
 <div id="telaSenha">
   <input id="senhaGlobal" type="password" placeholder="Senha da mesa">
-  <button onclick="verificarSenha()">Entrar</button>
+  <button id="btnSenha">Entrar</button>
 </div>
 
 <!-- 🔑 LOGIN UID -->
 <div id="telaAuth" style="display:none">
   <input id="email" type="email" placeholder="Email">
   <input id="senha" type="password" placeholder="Senha">
-  <button onclick="loginEmail()">Entrar / Cadastrar</button>
+ <button id="btnLogin">Entrar / Cadastrar</button>
 </div>
 
 <!-- ESCOLHA -->
@@ -308,5 +308,6 @@ window.rolarDado = () => {
 
 </body>
 </html>
+
 
 
