@@ -93,14 +93,28 @@ button,input,select{
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
-import { getDatabase, ref, set, onValue, push, remove } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
+
+import {
+  getDatabase,
+  ref,
+  set,
+  onValue,
+  push,
+  remove,
+  onDisconnect
+} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "SUA_API_KEY_AQUI",
+  apiKey: "SUA_API_KEY",
   authDomain: "mesa-rpg-9f195.firebaseapp.com",
   databaseURL: "https://mesa-rpg-9f195-default-rtdb.firebaseio.com",
-  projectId: "mesa-rpg-9f195"
+  projectId: "mesa-rpg-9f195",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -108,90 +122,112 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 let UID = null;
-let personagemAtual = null;
+let nickAtual = null;
 let DT = 0;
 
-/* 🔐 senha global */
-window.verificarSenha = () => {
-  if (senhaGlobal.value !== "somosumbra") return alert("Senha incorreta");
-  telaSenha.style.display = "none";
-  telaAuth.style.display = "block";
+/* =========================
+   LOGIN INICIAL (SOMOSUMBRA)
+========================= */
+window.entrarComSenhaInicial = () => {
+  const senha = prompt("Digite a senha de acesso");
+  if (senha !== "somosumbra") {
+    alert("Senha incorreta");
+    return;
+  }
+  telaLogin.style.display = "block";
 };
 
-/* 🔑 login / cadastro */
-window.login = () => {
-  signInWithEmailAndPassword(auth, email.value, senha.value)
-    .catch(() => createUserWithEmailAndPassword(auth, email.value, senha.value));
+/* =========================
+   AUTH EMAIL/SENHA
+========================= */
+window.loginEmail = async () => {
+  const email = prompt("Email:");
+  const senha = prompt("Senha (mín. 6 caracteres):");
+
+  try {
+    await signInWithEmailAndPassword(auth, email, senha);
+  } catch {
+    await createUserWithEmailAndPassword(auth, email, senha);
+  }
 };
 
 onAuthStateChanged(auth, user => {
   if (!user) return;
   UID = user.uid;
-  telaAuth.style.display = "none";
-  telaLogin.style.display = "block";
+  escolherModo();
 });
 
-/* escolha */
-window.mostrarJogador = () => {
-  telaLogin.style.display = "none";
-  loginJogador.style.display = "block";
-  carregarPersonagens();
-};
-
-window.mostrarMestre = () => {
-  telaLogin.style.display = "none";
-  loginMestre.style.display = "block";
-};
-
-/* personagens */
-function carregarPersonagens() {
-  onValue(ref(db, `users/${UID}/personagens`), snap => {
-    listaPersonagens.innerHTML = "";
-    snap.forEach(p => {
-      const b = document.createElement("button");
-      b.innerText = p.val().nome;
-      b.onclick = () => entrarJogador(p.key, p.val().nome);
-      listaPersonagens.appendChild(b);
-    });
-  });
+/* =========================
+   ESCOLHA JOGADOR / MESTRE
+========================= */
+function escolherModo() {
+  telaLogin.innerHTML = `
+    <button onclick="modoJogador()">Jogador</button>
+    <button onclick="modoMestre()">Mestre</button>
+  `;
 }
 
-window.criarPersonagem = () => {
-  if (!novoNick.value.trim()) return;
-  push(ref(db, `users/${UID}/personagens`), {
-    nome: novoNick.value,
+window.modoJogador = () => {
+  const base = ref(db, `usuarios/${UID}/personagens`);
+  onValue(base, snap => {
+    let html = "<h3>Escolha um personagem</h3>";
+    snap.forEach(p => {
+      html += `<button onclick="entrarPersonagem('${p.key}')">${p.key}</button>`;
+    });
+    html += `<button onclick="novoPersonagem()">➕ Novo personagem</button>`;
+    telaLogin.innerHTML = html;
+  }, { onlyOnce:true });
+};
+
+window.novoPersonagem = () => {
+  const nick = prompt("Nome do personagem");
+  if (!nick) return;
+  entrarPersonagem(nick, true);
+};
+
+window.entrarPersonagem = (nick, novo=false) => {
+  nickAtual = nick;
+
+  const refJogador = ref(db, `jogadores/${UID}_${nick}`);
+  set(refJogador, {
+    uid: UID,
+    nick,
+    rolls: 0,
     dado: 20,
-    rolls: 0
+    online: true
   });
-  novoNick.value = "";
+
+  if (novo) {
+    set(ref(db, `usuarios/${UID}/personagens/${nick}`), {
+      criado: Date.now()
+    });
+  }
+
+  onDisconnect(refJogador).remove();
+  iniciar("jogador");
 };
 
-window.entrarJogador = (id, nome) => {
-  personagemAtual = id;
-  localStorage.setItem("tipo", "jogador");
-  localStorage.setItem("nick", nome);
-  iniciar();
+window.modoMestre = () => {
+  const senha = prompt("Senha do mestre");
+  if (senha !== "souomestredosmagos") {
+    alert("Senha errada");
+    return;
+  }
+  iniciar("mestre");
 };
 
-/* mestre */
-window.entrarMestre = () => {
-  if (senhaMestre.value !== "souomestredosmagos") return alert("Senha errada");
-  localStorage.setItem("tipo", "mestre");
-  localStorage.setItem("nick", nickMestre.value || "Mestre");
-  iniciar();
-};
-
-/* iniciar */
-function iniciar() {
-  loginJogador.style.display = "none";
-  loginMestre.style.display = "none";
+/* =========================
+   INICIAR SISTEMA
+========================= */
+function iniciar(tipo) {
+  telaLogin.style.display = "none";
   painel.style.display = "block";
-  bemVindo.innerText = localStorage.getItem("nick");
+  bemVindo.innerText = `${nickAtual || "Mestre"} (${tipo})`;
 
   ouvirDT();
   ouvirHistorico();
 
-  if (localStorage.getItem("tipo") === "mestre") {
+  if (tipo === "mestre") {
     controleMestre.style.display = "block";
     ouvirJogadores();
   } else {
@@ -200,18 +236,19 @@ function iniciar() {
   }
 }
 
-/* firebase mesa */
+/* =========================
+   FIREBASE
+========================= */
 function ouvirJogadores() {
-  onValue(ref(db, "users"), snap => {
+  onValue(ref(db, "jogadores"), snap => {
     listaJogadores.innerHTML = "";
-    snap.forEach(u => {
-      const pers = u.child("personagens");
-      pers.forEach(p => {
-        const b = document.createElement("button");
-        b.innerText = p.val().nome;
-        b.onclick = () => darPermissao(u.key, p.key);
-        listaJogadores.appendChild(b);
-      });
+    snap.forEach(j => {
+      const d = j.val();
+      if (!d?.online) return;
+
+      const div = document.createElement("div");
+      div.innerText = d.nick;
+      listaJogadores.appendChild(div);
     });
   });
 }
@@ -228,40 +265,39 @@ function ouvirHistorico() {
 }
 
 function ouvirDT() {
-  onValue(ref(db, "DT"), s => DT = Number(s.val()) || 0);
+  onValue(ref(db, "DT"), snap => DT = Number(snap.val()) || 0);
 }
 
 function ouvirStatusJogador() {
-  onValue(ref(db, `users/${UID}/personagens/${personagemAtual}`), snap => {
+  onValue(ref(db, `jogadores/${UID}_${nickAtual}`), snap => {
     const j = snap.val();
+    if (!j) return;
     infoJogador.innerText =
       `Rolagens: ${j.rolls} | Dado: d${j.dado} | DT: ${DT}`;
   });
 }
 
-/* ações */
-window.darPermissao = (uid, pid) => {
-  const r = Number(prompt("Rolagens"));
-  if (!isNaN(r))
-    set(ref(db, `users/${uid}/personagens/${pid}/rolls`), r);
-};
-
-window.definirDT = () => set(ref(db, "DT"), Number(dtAtual.value));
-
-window.limparHistorico = () => remove(ref(db, "historico"));
-
+/* =========================
+   ROLAGEM
+========================= */
 window.rolarDado = () => {
-  const refPers = ref(db, `users/${UID}/personagens/${personagemAtual}`);
-  onValue(refPers, snap => {
+  const refJ = ref(db, `jogadores/${UID}_${nickAtual}`);
+  onValue(refJ, snap => {
     const j = snap.val();
-    if (j.rolls <= 0) return alert("Sem permissão");
+    if (!j || j.rolls <= 0) return alert("Sem permissão");
+
     const v = Math.floor(Math.random() * j.dado) + 1;
+    const r = v >= DT ? "SUCESSO" : "FALHA";
+
     push(ref(db, "historico"),
-      `${j.nome} rolou d${j.dado} → ${v}`);
-    set(ref(db, `${refPers.path}/rolls`), j.rolls - 1);
-  }, { onlyOnce: true });
+      `${j.nick} rolou d${j.dado} → ${v} | DT ${DT} → ${r}`
+    );
+
+    set(ref(db, `${refJ.key}/rolls`), j.rolls - 1);
+  }, { onlyOnce:true });
 };
 </script>
 
 </body>
 </html>
+
