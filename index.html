@@ -6,16 +6,65 @@
 <title>Mesa de RPG</title>
 
 <style>
-body{background:#111;color:#fff;font-family:Arial;padding:16px;margin:0}
-h1,h2,h3,h4{margin:8px 0}
-button,input,select{width:100%;padding:12px;margin:6px 0;font-size:16px}
-.box{border:1px solid #444;padding:12px;margin-top:12px;border-radius:8px}
-#listaJogadores>div{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:8px}
-.codigoSala{background:#222;padding:10px;border-radius:6px;font-family:monospace;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+body{
+  background:#111;
+  color:#fff;
+  font-family:Arial;
+  margin:0;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+h1{
+  text-align:center;
+  margin:12px 0;
+}
+h2,h3,h4{margin:8px 0}
+button,input,select{
+  width:100%;
+  padding:12px;
+  margin:6px 0;
+  font-size:16px
+}
+.box{
+  border:1px solid #444;
+  padding:12px;
+  margin-top:12px;
+  border-radius:8px
+}
+#listaJogadores>div{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  margin-bottom:10px;
+  border-bottom:1px solid #333;
+  padding-bottom:8px
+}
+.codigoSala{
+  background:#222;
+  padding:10px;
+  border-radius:6px;
+  font-family:monospace;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:10px
+}
+
+.central{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.coluna{
+  width:100%;
+  max-width:360px;
+}
+
 @media(min-width:768px){
-  body{max-width:700px;margin:auto}
-  button,input,select{width:auto}
-  #listaJogadores>div{flex-direction:row;align-items:center;gap:10px}
+  button,input,select{width:100%}
 }
 </style>
 </head>
@@ -24,7 +73,8 @@ button,input,select{width:100%;padding:12px;margin:6px 0;font-size:16px}
 
 <h1>Mesa de RPG 🎲</h1>
 
-<div id="telaSala">
+<div class="central">
+<div id="telaSala" class="coluna">
   <button id="btnCriarSala">Criar sala</button>
   <button id="btnMostrarEntrar">Entrar na sala</button>
   <div id="areaEntrarSala" style="display:none">
@@ -33,33 +83,34 @@ button,input,select{width:100%;padding:12px;margin:6px 0;font-size:16px}
   </div>
 </div>
 
-<div id="telaSenhaMestre" style="display:none">
+<div id="telaSenhaMestre" class="coluna" style="display:none">
   <input id="senhaMestreCriacao" type="password" placeholder="Senha do mestre">
   <button id="btnConfirmarSenhaMestre">Confirmar</button>
 </div>
 
-<div id="telaAuth" style="display:none">
+<div id="telaAuth" class="coluna" style="display:none">
   <input id="email" type="email" placeholder="Email">
   <input id="senha" type="password" placeholder="Senha">
   <button id="btnLogin">Entrar / Cadastrar</button>
 </div>
 
-<div id="telaLogin" style="display:none">
+<div id="telaLogin" class="coluna" style="display:none">
   <button id="btnJogador">Jogador</button>
   <button id="btnMestre">Mestre</button>
 </div>
 
-<div id="telaPersonagens" style="display:none">
+<div id="telaPersonagens" class="coluna" style="display:none">
   <button id="btnVoltar">⬅ Voltar</button>
   <div id="listaPersonagens"></div>
 </div>
+</div>
 
-<div id="painel" style="display:none">
+<div id="painel" style="display:none;padding:16px">
   <button id="btnSairMesa">🚪 Sair da mesa</button>
 
   <div id="codigoTopo" class="codigoSala" style="display:none">
     <span id="codigoTexto"></span>
-    <button onclick="navigator.clipboard.writeText(salaAtual)">📋 Copiar</button>
+    <button onclick="copiarCodigo()">📋 Copiar</button>
   </div>
 
   <h2 id="bemVindo"></h2>
@@ -277,6 +328,10 @@ function ouvirStatusJogador(){
     if(j)infoJogador.textContent=`Rolagens: ${j.rolls} | Dado: d${j.dado} | DT: ${DT}`;
   });
 }
+
+window.copiarCodigo=()=>{
+  navigator.clipboard.writeText(salaAtual);
+};
 
 window.darPermissao=id=>{
   const r=Number(prompt("Quantas rolagens?"));
