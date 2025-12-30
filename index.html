@@ -6,6 +6,8 @@
 <title>Mesa de RPG</title>
 
 <style>
+*{box-sizing:border-box}
+
 body{
   background:#111;
   color:#fff;
@@ -15,23 +17,31 @@ body{
   display:flex;
   flex-direction:column;
 }
+
 h1{
   text-align:center;
-  margin:12px 0;
+  margin:64px 0 24px 0;
 }
+
 h2,h3,h4{margin:8px 0}
-button,input,select{
+
+button,
+input,
+select{
   width:100%;
   padding:12px;
   margin:6px 0;
-  font-size:16px
+  font-size:16px;
+  height:48px;
 }
+
 .box{
   border:1px solid #444;
   padding:12px;
   margin-top:12px;
   border-radius:8px
 }
+
 #listaJogadores>div{
   display:flex;
   flex-direction:column;
@@ -40,6 +50,7 @@ button,input,select{
   border-bottom:1px solid #333;
   padding-bottom:8px
 }
+
 .codigoSala{
   background:#222;
   padding:10px;
