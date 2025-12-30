@@ -74,11 +74,6 @@ select{
   max-width:360px;
 }
 
-.campanha button{
-  width:33%; /* 1/3 do tamanho original */
-  min-width:100px;
-}
-
 @media(min-width:768px){
   button,input,select{width:100%}
 }
@@ -90,7 +85,7 @@ select{
 <h1>Mesa de RPG 🎲</h1>
 
 <div class="central">
-<div id="telaSala" class="coluna campanha">
+<div id="telaSala" class="coluna">
   <button id="btnCriarSala">Criar sala</button>
   <button id="btnMostrarEntrar">Entrar na sala</button>
   <div id="areaEntrarSala" style="display:none">
@@ -99,23 +94,23 @@ select{
   </div>
 </div>
 
-<div id="telaSenhaMestre" class="coluna campanha" style="display:none">
+<div id="telaSenhaMestre" class="coluna" style="display:none">
   <input id="senhaMestreCriacao" type="password" placeholder="Senha do mestre">
   <button id="btnConfirmarSenhaMestre">Confirmar</button>
 </div>
 
-<div id="telaAuth" class="coluna campanha" style="display:none">
+<div id="telaAuth" class="coluna" style="display:none">
   <input id="email" type="email" placeholder="Email">
   <input id="senha" type="password" placeholder="Senha">
   <button id="btnLogin">Entrar / Cadastrar</button>
 </div>
 
-<div id="telaLogin" class="coluna campanha" style="display:none">
+<div id="telaLogin" class="coluna" style="display:none">
   <button id="btnJogador">Jogador</button>
   <button id="btnMestre">Mestre</button>
 </div>
 
-<div id="telaPersonagens" class="coluna campanha" style="display:none">
+<div id="telaPersonagens" class="coluna" style="display:none">
   <button id="btnVoltar">⬅ Voltar</button>
   <div id="listaPersonagens"></div>
 </div>
